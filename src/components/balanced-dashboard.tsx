@@ -42,7 +42,7 @@ export function BalancedDashboard({ onNavigate }: { onNavigate?: (page: string) 
         transition={{ duration: 0.5 }}
         className="mb-6"
       >
-        <WeatherCard />
+        <WeatherCard weather={overview !== null ? (overview?.weather ?? null) : undefined} />
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

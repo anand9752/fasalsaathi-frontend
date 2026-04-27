@@ -5,7 +5,7 @@ import axios, {
     InternalAxiosRequestConfig,
     AxiosRequestConfig
 } from 'axios';
-import { Crop, CropRecommendation, DashboardOverview, Disease, Farm, MarketPrice, RegisterPayload, SoilTest, User } from '../types/api';
+import { Crop, CropRecommendation, DashboardOverview, Disease, Farm, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, MarketPrice, RegisterPayload, SoilTest, User } from '../types/api';
 
 // Error interface for backend responses
 interface ApiError {
@@ -225,11 +225,38 @@ export const dashboardApi = {
         apiClient.get<DashboardOverview>('/dashboard/overview').then(response => response.data)
 };
 
+export const inventoryApi = {
+    /** List all items; optionally filter by category, search term, or low-stock flag */
+    list: (params?: { category?: string; low_stock_only?: boolean; search?: string }) =>
+        apiClient.get<InventoryItem[]>('/inventory', { params }).then(r => r.data),
+
+    /** Aggregated stats for the inventory page header cards */
+    getStats: () =>
+        apiClient.get<InventoryStats>('/inventory/stats').then(r => r.data),
+
+    /** Create a new inventory item */
+    create: (data: InventoryItemCreate) =>
+        apiClient.post<InventoryItem>('/inventory', data).then(r => r.data),
+
+    /** Get a single item by id */
+    get: (id: number) =>
+        apiClient.get<InventoryItem>(`/inventory/${id}`).then(r => r.data),
+
+    /** Partial or full update */
+    update: (id: number, data: InventoryItemUpdate) =>
+        apiClient.put<InventoryItem>(`/inventory/${id}`, data).then(r => r.data),
+
+    /** Delete an item (returns void) */
+    delete: (id: number) =>
+        apiClient.delete(`/inventory/${id}`).then(r => r.data),
+};
+
 export default {
     auth: authApi,
     farms: farmApi,
     crops: cropApi,
     weather: weatherApi,
     market: marketApi,
-    dashboard: dashboardApi
+    dashboard: dashboardApi,
+    inventory: inventoryApi,
 };

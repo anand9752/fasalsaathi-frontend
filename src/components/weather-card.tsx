@@ -1,32 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { useLanguage, SpeakerButton } from "./language-context";
-import { Cloud, Sun, CloudRain, Wind } from 'lucide-react';
+import { Cloud, Wind, AlertTriangle } from 'lucide-react';
 import { weatherApi } from '../services/api';
+import { WeatherCurrentResponse } from '../types/api';
 
-interface WeatherData {
-  weather: Array<{ main: string; description: string; icon: string }>;
-  main: {
-    temp: number;
-    feels_like: number;
-    humidity: number;
-  };
-  wind: {
-    speed: number;
-  };
+interface WeatherCardProps {
+  /** Weather data from the dashboard overview. When provided, no extra fetch is made. */
+  weather?: WeatherCurrentResponse | null;
 }
 
-function generateGreeting(weatherData: WeatherData | null, t: (key: string) => string) {
+function generateGreeting(weatherCondition: string | null | undefined, t: (key: string) => string) {
   const hour = new Date().getHours();
-  const weather = weatherData?.weather[0]?.main?.toLowerCase();
+  const weather = weatherCondition?.toLowerCase();
 
-  // Time-based greeting
   let timeGreeting = '';
   if (hour < 12) timeGreeting = t('good-morning');
   else if (hour < 17) timeGreeting = t('good-afternoon');
   else timeGreeting = t('good-evening');
 
-  // Weather-based extension
   let weatherExtension = '';
   if (weather) {
     switch (weather) {
@@ -53,32 +45,40 @@ function generateGreeting(weatherData: WeatherData | null, t: (key: string) => s
   return `${timeGreeting}${weatherExtension ? ', ' + weatherExtension : ''}`;
 }
 
-export function WeatherCard() {
-  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+export function WeatherCard({ weather: propWeather }: WeatherCardProps) {
+  const [fetchedWeather, setFetchedWeather] = useState<WeatherCurrentResponse | null>(null);
   const { t } = useLanguage();
 
+  // Only self-fetch when no weather prop is supplied (standalone usage)
   useEffect(() => {
+    if (propWeather !== undefined) return; // prop provided — skip fetch
     const fetchWeather = async () => {
       try {
         const data = await weatherApi.getCurrentWeather();
-        setWeatherData(data);
+        setFetchedWeather(data);
       } catch (error) {
         console.error('Error fetching weather:', error);
       }
     };
-
     fetchWeather();
-    // Refresh weather data every 30 minutes
     const interval = setInterval(fetchWeather, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [propWeather]);
+
+  const weatherData = propWeather ?? fetchedWeather;
 
   if (!weatherData) {
-    return null; // or loading state
+    return null;
   }
 
-  const greeting = generateGreeting(weatherData, t);
-  const weatherIcon = weatherApi.getWeatherIcon(weatherData.weather[0].icon);
+  const condition = weatherData.weather[0];
+  const greeting = generateGreeting(condition?.main, t);
+  const weatherIcon = weatherApi.getWeatherIcon(condition.icon);
+
+  // Format the stale timestamp for display
+  const recordedAt = weatherData.recorded_at
+    ? new Date(weatherData.recorded_at).toLocaleString()
+    : null;
 
   return (
     <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 hover:shadow-lg transition-all duration-300">
@@ -88,14 +88,23 @@ export function WeatherCard() {
             {greeting}
             <SpeakerButton text={greeting} className="ml-2" />
           </div>
+          {weatherData.is_stale && (
+            <span
+              className="flex items-center gap-1 text-xs font-normal text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5"
+              title={recordedAt ? `Data recorded at ${recordedAt}` : 'Stale data'}
+            >
+              <AlertTriangle className="w-3 h-3" />
+              {recordedAt ? `As of ${recordedAt}` : 'Stale data'}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <img 
-              src={weatherIcon} 
-              alt={weatherData.weather[0].description}
+            <img
+              src={weatherIcon}
+              alt={condition.description}
               className="w-16 h-16"
             />
             <div className="ml-4">
@@ -103,7 +112,10 @@ export function WeatherCard() {
                 {Math.round(weatherData.main.temp)}°C
               </div>
               <div className="text-gray-600 capitalize">
-                {weatherData.weather[0].description}
+                {condition.description}
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5">
+                {weatherData.location}
               </div>
             </div>
           </div>

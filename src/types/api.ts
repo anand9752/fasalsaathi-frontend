@@ -86,15 +86,27 @@ export interface SoilTest {
     updated_at: string;
 }
 
-export interface WeatherData {
-    id: number;
+export interface WeatherCondition {
+    main: string;
+    description: string;
+    icon: string;
+}
+
+export interface WeatherCurrentResponse {
     location: string;
-    temperature: number;
-    humidity: number;
+    recorded_at: string;
+    weather: WeatherCondition[];
+    main: {
+        temp: number;
+        feels_like: number;
+        humidity: number;
+    };
+    wind: {
+        speed: number;
+    };
     rainfall: number;
-    wind_speed: number;
-    date: string;
-    created_at: string;
+    source: "live" | "cache" | "fallback";
+    is_stale: boolean;
 }
 
 export interface MarketPrice {
@@ -161,7 +173,58 @@ export interface DashboardOverview {
         expected_harvest: string;
         estimated_income_range: string;
     } | null;
-    weather?: any;
+    weather?: WeatherCurrentResponse | null;
     market_alert?: MarketPrice | null;
     recommendation_preview?: CropRecommendation[];
 }
+
+export type InventoryCategory = 'fertilizer' | 'seeds' | 'pesticide' | 'equipment' | 'other';
+
+export interface InventoryItem {
+    id: number;
+    owner_id: number;
+    name: string;
+    name_hindi: string;
+    category: InventoryCategory;
+    quantity: number;
+    unit: string;
+    low_stock_threshold: number;
+    cost: number;
+    supplier: string;
+    expiry_date?: string | null;
+    is_low_stock: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface InventoryItemCreate {
+    name: string;
+    name_hindi?: string;
+    category: InventoryCategory;
+    quantity: number;
+    unit: string;
+    low_stock_threshold?: number;
+    cost?: number;
+    supplier?: string;
+    expiry_date?: string | null;
+}
+
+export interface InventoryItemUpdate {
+    name?: string;
+    name_hindi?: string;
+    category?: InventoryCategory;
+    quantity?: number;
+    unit?: string;
+    low_stock_threshold?: number;
+    cost?: number;
+    supplier?: string;
+    expiry_date?: string | null;
+}
+
+export interface InventoryStats {
+    total_items: number;
+    low_stock_count: number;
+    total_value: number;
+    categories_count: number;
+}
+
