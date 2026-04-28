@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle, MessageCircle, Cloud } from "lucide-react";
+import emailjs from '@emailjs/browser';
 import { PublicNavbar } from "../components/public/PublicNavbar";
 import { PublicFooter } from "../components/public/PublicFooter";
 import { useLanguage } from "../hooks/useLanguage";
@@ -119,19 +120,49 @@ function FadeUp({ children, delay = 0, className = "" }: { children: React.React
 // ─── Main Page Export ─────────────────────────────────────────────────────────
 export function ContactPage() {
   const { lang } = useLanguage();
-  const text = t[lang];
+  const text = t[lang as keyof typeof t] || t.en;
   
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ─── EMAILJS SUBMISSION HANDLER ─────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setTimeout(() => {
+
+    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+    if (!serviceId || !templateId || !publicKey) {
+      console.error("EmailJS environment variables are missing!");
+      alert("Configuration error: Email service is currently unavailable.");
       setSubmitting(false);
+      return;
+    }
+
+    try {
+      await emailjs.send(
+        serviceId,
+        templateId,
+        {
+          from_name: form.name,
+          from_email: form.email,
+          subject: form.subject,
+          message: form.message,
+        },
+        publicKey
+      );
+      
       setSubmitted(true);
-    }, 1500);
+      setForm({ name: "", email: "", subject: "", message: "" });
+    } catch (error) {
+      console.error("Failed to send email:", error);
+      alert("Failed to send the message. Please try again later or email us directly at support@fasalsaathi.in");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const contactInfo = [
@@ -159,7 +190,7 @@ export function ContactPage() {
           --cp-font-body: 'Inter', system-ui, sans-serif;
           --cp-font-display: 'Poppins', system-ui, sans-serif;
           --cp-primary: #16a34a; --cp-primary-dark: #15803d; --cp-primary-light: #dcfce7;
-          --cp-text-dark: #111827; --cp-text-muted: #6b7280; --cp-text-light: #ffffff;
+          --cp-text-dark: #111827; --cp-text-muted: #4b5563; --cp-text-light: #ffffff;
           font-family: var(--cp-font-body); background-color: #ffffff; color: var(--cp-text-dark);
           display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden;
         }
@@ -167,7 +198,7 @@ export function ContactPage() {
         .fs-cp-container { max-width: 72rem; margin: 0 auto; padding: 0 1rem; width: 100%; box-sizing: border-box; }
         @media (min-width: 640px) { .fs-cp-container { padding: 0 1.5rem; } }
 
-        /* -- ANIMATED HERO (FARMING THEME) -- */
+        /* -- ANIMATED HERO -- */
         .fs-cp-hero { position: relative; padding-top: 8rem; padding-bottom: 4rem; background: linear-gradient(180deg, #064e3b 0%, #022c22 100%); text-align: center; overflow: hidden; }
         @media (min-width: 768px) { .fs-cp-hero { padding-top: 10rem; } }
         
@@ -186,19 +217,15 @@ export function ContactPage() {
         .fs-cp-bg-hill-1 { left: -5%; background: rgba(20, 83, 45, 0.5); z-index: 1; height: 35%; animation-duration: 12s; }
         .fs-cp-bg-hill-2 { left: -10%; background: rgba(6, 95, 70, 0.7); z-index: 2; height: 25%; animation-delay: -5s; }
 
-        @keyframes leafFall { 0% { transform: translate(0, -50px) rotate(0deg); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(-150px, 100vh) rotate(720deg); opacity: 0; } }
-        .fs-cp-bg-leaf { position: absolute; top: -10%; background: linear-gradient(135deg, #4ade80, #16a34a); border-radius: 50% 0 50% 0; opacity: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); animation: leafFall linear infinite; }
-        .fs-cp-l-1 { left: 15%; width: 14px; height: 14px; animation-duration: 12s; animation-delay: 0s; }
-        .fs-cp-l-2 { left: 40%; width: 10px; height: 10px; animation-duration: 16s; animation-delay: 3s; }
-        .fs-cp-l-3 { left: 65%; width: 18px; height: 18px; animation-duration: 14s; animation-delay: 1s; background: linear-gradient(135deg, #facc15, #ca8a04); }
-
         .fs-cp-noise { position: absolute; inset: 0; background-image: url('https://grainy-gradients.vercel.app/noise.svg'); opacity: 0.2; mix-blend-mode: overlay; z-index: 3;}
 
         .fs-cp-hero-content { position: relative; z-index: 10; }
-        .fs-cp-hero-badge { display: inline-block; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ffffff; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
-        .fs-cp-h1 { font-family: var(--cp-font-display); font-size: 2.25rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; color: var(--cp-text-light); }
-        @media (min-width: 640px) { .fs-cp-h1 { font-size: 3rem; } }
-        .fs-cp-hero-p { color: #d1fae5; font-size: 1.125rem; max-width: 42rem; margin: 0 auto; line-height: 1.625; font-weight: 300; }
+        
+        /* -- SCALED UP HERO TYPOGRAPHY -- */
+        .fs-cp-hero-badge { display: inline-block; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #ffffff; font-size: 0.875rem; font-weight: 600; padding: 0.375rem 1rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+        .fs-cp-h1 { font-family: var(--cp-font-display); font-size: 2.5rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; color: var(--cp-text-light); }
+        @media (min-width: 640px) { .fs-cp-h1 { font-size: 3.5rem; } }
+        .fs-cp-hero-p { color: #d1fae5; font-size: 1.25rem; max-width: 48rem; margin: 0 auto; line-height: 1.625; font-weight: 300; }
 
         /* -- CONTACT INFO CARDS -- */
         .fs-cp-info-section { padding: 4rem 0; }
@@ -206,57 +233,58 @@ export function ContactPage() {
         @media (min-width: 640px) { .fs-cp-info-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (min-width: 1024px) { .fs-cp-info-grid { grid-template-columns: repeat(4, 1fr); } }
         
-        .fs-cp-info-card { background: #ffffff; border: 1px solid #f3f4f6; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transition: box-shadow 0.2s ease; }
+        .fs-cp-info-card { background: #ffffff; border: 1px solid #f3f4f6; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transition: box-shadow 0.2s ease; }
         .fs-cp-info-card:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         
-        .fs-cp-icon-box { width: 2.75rem; height: 2.75rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem; }
+        /* SCALED UP ICON & CARD TEXT */
+        .fs-cp-icon-box { width: 3.5rem; height: 3.5rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+        .fs-cp-icon-box svg { width: 24px; height: 24px; }
         .fs-cp-icon-blue { background-color: #eff6ff; color: #2563eb; } .fs-cp-icon-green { background-color: #f0fdf4; color: #16a34a; } .fs-cp-icon-orange { background-color: #fff7ed; color: #ea580c; } .fs-cp-icon-purple { background-color: #faf5ff; color: #9333ea; }
         
-        .fs-cp-info-label { font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.25rem 0; }
-        .fs-cp-info-value { font-size: 0.875rem; font-weight: 600; color: var(--cp-text-dark); margin: 0 0 0.25rem 0; }
-        .fs-cp-info-note { font-size: 0.75rem; color: #9ca3af; margin: 0; }
+        .fs-cp-info-label { font-size: 0.875rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem 0; }
+        .fs-cp-info-value { font-size: 1.125rem; font-weight: 600; color: var(--cp-text-dark); margin: 0 0 0.5rem 0; }
+        .fs-cp-info-note { font-size: 0.875rem; color: #6b7280; margin: 0; }
 
         /* -- SPLIT SECTION (FORM & FAQ) -- */
         .fs-cp-split-grid { display: grid; grid-template-columns: 1fr; gap: 3.5rem; }
         @media (min-width: 1024px) { .fs-cp-split-grid { grid-template-columns: 1fr 1fr; } }
 
-        /* -- FORM -- */
-        .fs-cp-form-wrap { background: #f9fafb; border-radius: 1.5rem; padding: 2rem; border: 1px solid #f3f4f6; }
-        .fs-cp-form-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
-        .fs-cp-form-title { font-family: var(--cp-font-display); font-size: 1.125rem; font-weight: 700; margin: 0; color: var(--cp-text-dark); }
-        .fs-cp-form-subtitle { font-size: 0.75rem; color: var(--cp-text-muted); margin: 0; }
+        /* -- SCALED UP FORM -- */
+        .fs-cp-form-wrap { background: #f9fafb; border-radius: 1.5rem; padding: 2.5rem; border: 1px solid #f3f4f6; }
+        .fs-cp-form-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+        .fs-cp-form-title { font-family: var(--cp-font-display); font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--cp-text-dark); }
+        .fs-cp-form-subtitle { font-size: 1rem; color: var(--cp-text-muted); margin: 0; }
         
-        .fs-cp-field-group { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
-        .fs-cp-field-row { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+        .fs-cp-field-group { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .fs-cp-field-row { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
         @media (min-width: 640px) { .fs-cp-field-row { grid-template-columns: 1fr 1fr; } }
         
-        .fs-cp-label { display: block; font-size: 0.75rem; font-weight: 500; color: var(--cp-text-muted); margin-bottom: 0.375rem; }
-        .fs-cp-input, .fs-cp-textarea { width: 100%; box-sizing: border-box; padding: 0.625rem 1rem; font-size: 0.875rem; font-family: inherit; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 0.75rem; color: var(--cp-text-dark); transition: all 0.2s ease; outline: none; }
+        .fs-cp-label { display: block; font-size: 0.95rem; font-weight: 500; color: var(--cp-text-muted); margin-bottom: 0.5rem; }
+        .fs-cp-input, .fs-cp-textarea { width: 100%; box-sizing: border-box; padding: 0.875rem 1.25rem; font-size: 1rem; font-family: inherit; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 0.75rem; color: var(--cp-text-dark); transition: all 0.2s ease; outline: none; }
         .fs-cp-input::placeholder, .fs-cp-textarea::placeholder { color: #9ca3af; }
         .fs-cp-input:focus, .fs-cp-textarea:focus { border-color: var(--cp-primary); box-shadow: 0 0 0 3px var(--cp-primary-light); }
         .fs-cp-textarea { resize: none; }
         
-        .fs-cp-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem; font-size: 1rem; font-weight: 600; color: #ffffff; background: var(--cp-primary); border: none; border-radius: 0.75rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); font-family: inherit; margin-top: 0.5rem; }
+        .fs-cp-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 1rem; font-size: 1.125rem; font-weight: 600; color: #ffffff; background: var(--cp-primary); border: none; border-radius: 0.75rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); font-family: inherit; margin-top: 0.5rem; }
         .fs-cp-btn:hover:not(:disabled) { background: var(--cp-primary-dark); transform: translateY(-1px); }
         .fs-cp-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .fs-cp-success { text-align: center; padding: 3rem 0; }
-        .fs-cp-success-title { font-family: var(--cp-font-display); font-size: 1.125rem; font-weight: 700; margin: 1rem 0 0.5rem; color: var(--cp-text-dark); }
-        .fs-cp-success-desc { font-size: 0.875rem; color: var(--cp-text-muted); margin: 0; }
+        .fs-cp-success-title { font-family: var(--cp-font-display); font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.5rem; color: var(--cp-text-dark); }
+        .fs-cp-success-desc { font-size: 1rem; color: var(--cp-text-muted); margin: 0; }
 
-        /* -- FAQ -- */
-        .fs-cp-faq-title { font-family: var(--cp-font-display); font-size: 1.25rem; font-weight: 700; color: var(--cp-text-dark); margin: 0 0 1.5rem 0; }
-        .fs-cp-faq-list { display: flex; flex-direction: column; gap: 1rem; }
-        .fs-cp-faq-item { background: #f9fafb; border-radius: 0.75rem; padding: 1.25rem; border: 1px solid #f3f4f6; }
-        .fs-cp-faq-q { font-weight: 600; font-size: 0.875rem; color: var(--cp-text-dark); margin: 0 0 0.5rem 0; }
-        .fs-cp-faq-a { font-size: 0.875rem; color: var(--cp-text-muted); line-height: 1.625; margin: 0; }
+        /* -- SCALED UP FAQ -- */
+        .fs-cp-faq-title { font-family: var(--cp-font-display); font-size: 1.75rem; font-weight: 700; color: var(--cp-text-dark); margin: 0 0 2rem 0; }
+        .fs-cp-faq-list { display: flex; flex-direction: column; gap: 1.25rem; }
+        .fs-cp-faq-item { background: #f9fafb; border-radius: 0.75rem; padding: 1.5rem; border: 1px solid #f3f4f6; }
+        .fs-cp-faq-q { font-weight: 600; font-size: 1.125rem; color: var(--cp-text-dark); margin: 0 0 0.75rem 0; }
+        .fs-cp-faq-a { font-size: 1rem; color: var(--cp-text-muted); line-height: 1.625; margin: 0; }
       `}</style>
 
       <div className="fs-cp-wrapper">
         <PublicNavbar />
 
         <main style={{ flex: 1 }}>
-          {/* Animated Farming Hero */}
           <section className="fs-cp-hero">
             <div className="fs-cp-hero-bg">
               <div className="fs-cp-bg-sun" />
@@ -286,13 +314,12 @@ export function ContactPage() {
           <section className="fs-cp-info-section">
             <div className="fs-cp-container">
               
-              {/* Dynamic Contact cards */}
               <div className="fs-cp-info-grid">
                 {contactInfo.map(({ icon: Icon, label, value, note, theme }, i) => (
                   <FadeUp key={label} delay={i * 0.1}>
                     <div className="fs-cp-info-card">
                       <div className={`fs-cp-icon-box fs-cp-icon-${theme}`}>
-                        <Icon size={20} />
+                        <Icon />
                       </div>
                       <p className="fs-cp-info-label">{label}</p>
                       <p className="fs-cp-info-value">{value}</p>
@@ -302,15 +329,13 @@ export function ContactPage() {
                 ))}
               </div>
 
-              {/* Form + FAQ split */}
               <div className="fs-cp-split-grid">
                 
-                {/* Contact Form */}
                 <FadeUp>
                   <div className="fs-cp-form-wrap">
                     <div className="fs-cp-form-header">
                       <div className="fs-cp-icon-box fs-cp-icon-green" style={{ marginBottom: 0 }}>
-                        <MessageCircle size={20} />
+                        <MessageCircle />
                       </div>
                       <div>
                         <h2 className="fs-cp-form-title">{text.formTitle}</h2>
@@ -320,7 +345,7 @@ export function ContactPage() {
 
                     {submitted ? (
                       <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="fs-cp-success">
-                        <CheckCircle size={64} color="var(--cp-primary)" style={{ margin: '0 auto' }} />
+                        <CheckCircle size={80} color="var(--cp-primary)" style={{ margin: '0 auto' }} />
                         <h3 className="fs-cp-success-title">{text.succTitle}</h3>
                         <p className="fs-cp-success-desc">{text.succDesc}</p>
                       </motion.div>
@@ -363,14 +388,13 @@ export function ContactPage() {
                           </div>
                         </div>
                         <button type="submit" disabled={submitting} className="fs-cp-btn">
-                          {submitting ? text.btnSending : (<><Send size={16} /> {text.btnSend}</>)}
+                          {submitting ? text.btnSending : (<><Send size={20} /> {text.btnSend}</>)}
                         </button>
                       </form>
                     )}
                   </div>
                 </FadeUp>
 
-                {/* Dynamic FAQ */}
                 <FadeUp delay={0.1}>
                   <div>
                     <h2 className="fs-cp-faq-title">{text.faqTitle}</h2>

@@ -169,32 +169,38 @@ function FadeUp({ children, delay = 0, className = "" }: { children: React.React
 export function FeaturesPage() {
   const navigate = useNavigate();
   const { lang } = useLanguage();
-  const text = t[lang];
+  const text = t[lang as keyof typeof t] || t.en;
 
   const featureSections = [
     {
       icon: Cloud, theme: "blue", title: text.feat1Title, subtitle: text.feat1Sub, description: text.feat1Desc,
       bullets: [text.feat1B1, text.feat1B2, text.feat1B3, text.feat1B4],
+      imgSrc: "/first.png", // Farmer looking at sky/weather
     },
     {
       icon: TrendingUp, theme: "orange", title: text.feat2Title, subtitle: text.feat2Sub, description: text.feat2Desc,
       bullets: [text.feat2B1, text.feat2B2, text.feat2B3, text.feat2B4],
+      imgSrc: "/second.png", // Indian market / produce
     },
     {
       icon: Leaf, theme: "green", title: text.feat3Title, subtitle: text.feat3Sub, description: text.feat3Desc,
       bullets: [text.feat3B1, text.feat3B2, text.feat3B3, text.feat3B4],
+      imgSrc: "/third.png", // Modern agricultural tech/tablet
     },
     {
       icon: Shield, theme: "red", title: text.feat4Title, subtitle: text.feat4Sub, description: text.feat4Desc,
       bullets: [text.feat4B1, text.feat4B2, text.feat4B3, text.feat4B4],
+      imgSrc: "/fourth.png", // Close up examining leaves
     },
     {
       icon: BarChart3, theme: "purple", title: text.feat5Title, subtitle: text.feat5Sub, description: text.feat5Desc,
       bullets: [text.feat5B1, text.feat5B2, text.feat5B3, text.feat5B4],
+      imgSrc: "/fifth.png", // Harvesting golden wheat fields
     },
     {
       icon: Smartphone, theme: "teal", title: text.feat6Title, subtitle: text.feat6Sub, description: text.feat6Desc,
       bullets: [text.feat6B1, text.feat6B2, text.feat6B3, text.feat6B4],
+      imgSrc: "/sixth.png", // Indian farmer using smartphone
     },
   ];
 
@@ -232,13 +238,32 @@ export function FeaturesPage() {
         .fs-fp-btn:hover { transform: scale(1.05); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
 
         .fs-fp-icon-box { width: 3.5rem; height: 3.5rem; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
-        .fs-fp-visual-box { border-radius: 1.5rem; display: flex; align-items: center; justify-content: center; min-height: 280px; border: 1px solid rgba(0,0,0,0.05); }
-        .fs-fp-icon-blue { background-color: #eff6ff; color: #2563eb; } .fs-fp-visual-blue { background: linear-gradient(to bottom right, #eff6ff, #cffafe); }
-        .fs-fp-icon-orange { background-color: #fff7ed; color: #ea580c; } .fs-fp-visual-orange { background: linear-gradient(to bottom right, #fff7ed, #fef3c7); }
-        .fs-fp-icon-green { background-color: #f0fdf4; color: #16a34a; } .fs-fp-visual-green { background: linear-gradient(to bottom right, #f0fdf4, #d1fae5); }
-        .fs-fp-icon-red { background-color: #fef2f2; color: #dc2626; } .fs-fp-visual-red { background: linear-gradient(to bottom right, #fef2f2, #ffe4e6); }
-        .fs-fp-icon-purple { background-color: #faf5ff; color: #9333ea; } .fs-fp-visual-purple { background: linear-gradient(to bottom right, #faf5ff, #ede9fe); }
-        .fs-fp-icon-teal { background-color: #f0fdfa; color: #0d9488; } .fs-fp-visual-teal { background: linear-gradient(to bottom right, #f0fdfa, #cffafe); }
+        
+        /* Strict Sizing for Uniform Images */
+        .fs-fp-visual-box { 
+          border-radius: 1.5rem; 
+          display: block; 
+          width: 100%;
+          aspect-ratio: 4 / 3; /* Forces a perfect, uniform rectangle for EVERY image */
+          overflow: hidden; 
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); 
+          position: relative;
+        }
+        .fs-fp-feature-img { 
+          width: 100%; 
+          height: 100%; 
+          object-fit: cover; /* Prevents stretching or squishing */
+          transition: transform 0.5s ease; 
+          display: block;
+        }
+        .fs-fp-visual-box:hover .fs-fp-feature-img { transform: scale(1.05); }
+
+        .fs-fp-icon-blue { background-color: #eff6ff; color: #2563eb; } 
+        .fs-fp-icon-orange { background-color: #fff7ed; color: #ea580c; } 
+        .fs-fp-icon-green { background-color: #f0fdf4; color: #16a34a; } 
+        .fs-fp-icon-red { background-color: #fef2f2; color: #dc2626; } 
+        .fs-fp-icon-purple { background-color: #faf5ff; color: #9333ea; } 
+        .fs-fp-icon-teal { background-color: #f0fdfa; color: #0d9488; } 
 
         /* -- ANIMATED HERO -- */
         .fs-fp-hero { position: relative; padding-top: 8rem; padding-bottom: 4rem; background: linear-gradient(180deg, #064e3b 0%, #022c22 100%); text-align: center; overflow: hidden; }
@@ -294,7 +319,6 @@ export function FeaturesPage() {
 
         <main style={{ flex: 1 }}>
           <section className="fs-fp-hero">
-            {/* Animated Farming Background */}
             <div className="fs-fp-hero-bg">
               <div className="fs-fp-bg-sun" />
               <Cloud className="fs-fp-bg-cloud fs-fp-bg-cloud-1" size={160} />
@@ -325,7 +349,7 @@ export function FeaturesPage() {
           </section>
 
           <div className="fs-fp-container fs-fp-sections-wrap">
-            {featureSections.map(({ icon: Icon, title, subtitle, description, bullets, theme }, i) => (
+            {featureSections.map(({ icon: Icon, title, subtitle, description, bullets, theme, imgSrc }, i) => (
               <FadeUp key={title} delay={0.1}>
                 <div className={`fs-fp-row ${i % 2 === 1 ? "fs-fp-row-reverse" : ""}`}>
                   <div>
@@ -344,9 +368,9 @@ export function FeaturesPage() {
                       ))}
                     </ul>
                   </div>
-                  <motion.div whileHover={{ scale: 1.02 }} className={`fs-fp-visual-box fs-fp-visual-${theme}`}>
-                    <Icon size={112} color="rgba(0,0,0,0.1)" strokeWidth={0.8} />
-                  </motion.div>
+                  <div className="fs-fp-visual-box">
+                    <img src={imgSrc} alt={title} className="fs-fp-feature-img" loading="lazy" />
+                  </div>
                 </div>
               </FadeUp>
             ))}
@@ -375,9 +399,9 @@ export function FeaturesPage() {
               <FadeUp>
                 <h2 className="fs-fp-cta-h2">{text.ctaTitle}</h2>
                 <p className="fs-fp-hero-p" style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>{text.ctaDesc}</p>
-                <a href="/app" className="fs-fp-btn">
+                <button onClick={() => navigate('/app')} className="fs-fp-btn">
                   {text.btnStartFree}
-                </a>
+                </button>
               </FadeUp>
             </div>
           </section>
