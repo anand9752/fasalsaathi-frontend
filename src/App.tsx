@@ -11,9 +11,10 @@ import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 
 // App internals (existing)
+import { ProfilePage } from "./components/profile-page";
 import { WeatherHeader } from "./components/navigation";
 import { OnboardingFlow } from "./components/onboarding";
-import { LoginPage } from "./components/LoginPage"; // <-- IMPORTED LOGIN PAGE
+import { LoginPage } from "./components/LoginPage"; 
 import { CalendarPage } from "./components/calendar-page";
 import { MarketPage } from "./components/market-page";
 import { PlantAnalysisPage } from "./components/plant-analysis";
@@ -63,6 +64,7 @@ type Page =
   | "my-farm"
   | "yield-prediction"
   | "crop-recommendations"
+  | "profile"
   | "inventory";
 type Language = "hi" | "en" | "mr";
 
@@ -71,24 +73,38 @@ type Language = "hi" | "en" | "mr";
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <Routes>
-      {/* Public static pages */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/features" element={<FeaturesPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/contact" element={<ContactPage />} />
-      <Route path="/guidelines" element={<GuidelinesPage />} />
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Public static pages */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/guidelines" element={<GuidelinesPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
 
-      {/* Authenticated app — lives at /app */}
-      <Route path="/app" element={<AuthenticatedApp />} />
-      <Route path="/app/*" element={<AuthenticatedApp />} />
+        {/* Authenticated app — lives at /app */}
+        <Route path="/app" element={<AuthenticatedApp />} />
+        <Route path="/app/*" element={<AuthenticatedApp />} />
 
-      {/* Catch-all → redirect to landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch-all → redirect to landing */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    // Instantly scroll to the top left corner whenever the path changes
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null; // This component doesn't render any UI
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,6 +228,8 @@ function AppContent({
         return <MarketPage />;
       case "plant-analysis":
         return <PlantAnalysisPage />;
+      case "profile":
+        return <ProfilePage onBack={() => handleNavigation("dashboard")} />;
       case "my-farm":
         return <MyFarmPage />;
       case "yield-prediction":
@@ -279,15 +297,22 @@ function AppContent({
     }
   };
 
+  const isProfilePage = currentPage === "profile";  
+  const isDashboard = currentPage === "dashboard";
+
   return (
-    <div className="min-h-screen bg-background">
-      <TopNavigationWithRouter
-        currentPage={currentPage}
-        onNavigate={handleNavigation}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
-      <WeatherHeader />
+    <div className={`min-h-screen ${isProfilePage ? "bg-gray-50" : "bg-background"}`}>
+      {!isProfilePage && (
+        <>
+          <TopNavigationWithRouter
+            currentPage={currentPage}
+            onNavigate={handleNavigation}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
+          {isDashboard && <WeatherHeader />}
+        </>
+      )}
 
       <main className="min-h-screen">{renderCurrentPage()}</main>
 
@@ -296,12 +321,14 @@ function AppContent({
         onToggle={() => setIsChatOpen(!isChatOpen)}
       />
 
-      <footer className="bg-white border-t border-gray-200 py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-600">{t("copyright-text")}</p>
-          <p className="text-sm text-gray-500 mt-2">{t("tagline")}</p>
-        </div>
-      </footer>
+      {!isProfilePage && (
+        <footer className="bg-white border-t border-gray-200 py-6 mt-12">
+          <div className="max-w-7xl mx-auto px-4 text-center">
+            <p className="text-gray-600">{t("copyright-text")}</p>
+            <p className="text-sm text-gray-500 mt-2">{t("tagline")}</p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
@@ -466,10 +493,9 @@ function TopNavigationWithRouter({
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem>
-                <User className="w-4 h-4 mr-2" />
-                {currentUser?.full_name || t("profile")}
-              </DropdownMenuItem>
+              <DropdownMenuItem className="fs-drop-item" onClick={() => onNavigate("profile")}>
+                  <User className="w-4 h-4 mr-2 opacity-80" /> {t("profile")}
+                </DropdownMenuItem>
               <DropdownMenuItem>{t("settings")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onLogout}>
                 {t("logout")}
