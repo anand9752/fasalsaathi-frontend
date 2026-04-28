@@ -49,14 +49,22 @@ apiClient.interceptors.response.use(
     async (error: AxiosError<ApiError>) => {
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
+        // ─── THE FIX: Check if this was a login attempt ───
+        const isLoginRequest = originalRequest.url?.includes('/auth/token');
+
         // Handle 401 Unauthorized errors
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
-            // Clear token and redirect to login if refresh fails
+            // ─── THE FIX: Do not redirect if they are actively trying to log in ───
+            if (isLoginRequest) {
+                return Promise.reject(error); // Let LoginPage.tsx handle the UI error message
+            }
+
+            // Clear token and redirect to login if refresh fails (for normal dashboard requests)
             const handleAuthError = () => {
                 localStorage.removeItem('accessToken');
-                window.location.href = '/';
+                window.location.href = '/login'; // Changed from '/' to '/login' for better UX
                 return Promise.reject(error);
             };
 
