@@ -259,6 +259,25 @@ export const inventoryApi = {
         apiClient.delete(`/inventory/${id}`).then(r => r.data),
 };
 
+import { Notification, NotificationUpdate } from '../types/notification';
+
+export const notificationApi = {
+    getNotifications: () => 
+        apiClient.get<Notification[]>('/notifications').then(response => response.data),
+    
+    markAsRead: (id: number, data: NotificationUpdate) => 
+        apiClient.patch<Notification>(`/notifications/${id}/read`, data).then(response => response.data),
+        
+    deleteNotification: (id: number) => 
+        apiClient.delete(`/notifications/${id}`).then(response => response.data),
+};
+
+export const askSathiApi = {
+    ask: (query: string, history: { role: string; content: string }[] = []) =>
+        apiClient.post<{ type: string; response: string; language: string }>('/ask-sathi/ask-sathi', { query, history })
+            .then(response => response.data),
+};
+
 export default {
     auth: authApi,
     farms: farmApi,
@@ -267,4 +286,6 @@ export default {
     market: marketApi,
     dashboard: dashboardApi,
     inventory: inventoryApi,
+    notifications: notificationApi,
+    askSathi: askSathiApi,
 };
