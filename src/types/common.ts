@@ -41,7 +41,9 @@ export interface YieldPredictionParams {
 }
 
 export interface MarketPriceParams {
+    state?: string;
     market?: string;
+    commodity?: string;
     crop_id?: number;
 }
 

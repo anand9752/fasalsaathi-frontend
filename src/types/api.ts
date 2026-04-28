@@ -76,14 +76,26 @@ export interface Disease {
 export interface SoilTest {
     id: number;
     farm_id: number;
-    ph: number;
+    soil_ph: number;
     nitrogen: number;
     phosphorus: number;
     potassium: number;
     organic_matter: number;
+    soil_moisture: number;
+    temperature: number;
     test_date: string;
     created_at: string;
     updated_at: string;
+}
+
+export interface SoilTestCreatePayload {
+    farm_id: number;
+    soil_ph: number;
+    nitrogen: number;
+    phosphorus: number;
+    potassium: number;
+    soil_moisture: number;
+    temperature: number;
 }
 
 export interface WeatherCondition {
@@ -109,8 +121,106 @@ export interface WeatherCurrentResponse {
     is_stale: boolean;
 }
 
+export interface WeatherForecastResponse {
+    location: string;
+    forecast: Array<{
+        recorded_at: string;
+        weather: WeatherCondition[];
+        main: {
+            temp: number;
+            feels_like: number;
+            humidity: number;
+        };
+        wind: {
+            speed: number;
+        };
+        rainfall: number;
+    }>;
+    source: "live" | "cache" | "fallback";
+    is_stale: boolean;
+}
+
+export interface FarmCalendarCropContext {
+    crop_id: number;
+    crop_name: string;
+    crop_name_hindi: string;
+    season: string;
+    sowing_date: string;
+    expected_harvest_date: string;
+    days_since_sowing: number;
+    total_duration_days: number;
+    current_stage: string;
+    current_stage_hindi: string;
+    stage_progress_percent: number;
+}
+
+export interface FarmCalendarHealthMetric {
+    key: string;
+    label: string;
+    value: number;
+    unit: string;
+    status: "good" | "warning" | "critical" | "info";
+    note: string;
+}
+
+export interface FarmCalendarTimelineItem {
+    name: string;
+    name_hindi: string;
+    start_day: number;
+    end_day: number;
+    is_current: boolean;
+}
+
+export interface FarmCalendarRecommendation {
+    title: string;
+    message: string;
+    priority: "critical" | "high" | "medium" | "info";
+}
+
+export interface FarmCalendarTask {
+    id: string;
+    date: string;
+    task: string;
+    task_hindi: string;
+    category: "irrigation" | "fertilizer" | "pest" | "weather" | "milestone" | "general";
+    priority: "critical" | "high" | "medium" | "info" | "optimal";
+    reason: string;
+    recommendation: string;
+    suggested_time?: string | null;
+}
+
+export interface FarmCalendarWeatherAlert {
+    title: string;
+    message: string;
+    priority: "critical" | "high" | "medium" | "info";
+}
+
+export interface FarmCalendarWeatherSnapshot {
+    location: string;
+    rainfall: number;
+    forecast_rainfall: number;
+    temperature: number;
+    humidity: number;
+    wind_speed: number;
+    summary: string;
+    source: "live" | "cache" | "fallback";
+    is_stale: boolean;
+}
+
+export interface FarmCalendarResponse {
+    farm_id: number;
+    generated_at: string;
+    crop_context?: FarmCalendarCropContext | null;
+    weather: FarmCalendarWeatherSnapshot;
+    farm_health: FarmCalendarHealthMetric[];
+    growth_timeline: FarmCalendarTimelineItem[];
+    recommendations: FarmCalendarRecommendation[];
+    weather_alerts: FarmCalendarWeatherAlert[];
+    tasks: FarmCalendarTask[];
+}
+
 export interface MarketPrice {
-    id: number;
+    id: string;
     crop_id: number;
     crop_name?: string;
     crop_name_hindi?: string;
@@ -121,6 +231,13 @@ export interface MarketPrice {
     change_percent?: number;
     date: string;
     created_at: string;
+    state?: string;
+    district?: string;
+    variety?: string;
+    min_price?: number;
+    max_price?: number;
+    modal_price?: number;
+    source?: string;
 }
 
 export interface RegisterPayload {
@@ -135,18 +252,40 @@ export interface CropRecommendation {
     crop_id: number;
     name: string;
     name_hindi: string;
-    season: string;
-    score: number;
+    season?: string | null;
+    score?: number | null;
     profit_margin: number;
     estimated_yield_range: string;
     water_requirement: string;
     market_demand: string;
     climate_suitability: string;
     duration: string;
-    difficulty: string;
     investment: number;
     risk_level: string;
     description: string;
+}
+
+export interface CropRecommendationRequest {
+    soil_ph: number;
+    nitrogen: number;
+    phosphorus: number;
+    potassium: number;
+    soil_moisture: number;
+    temperature: number;
+    rainfall: number;
+    location: string;
+}
+
+export interface CropDetailResponse {
+    crop_name: string;
+    crop_name_hindi: string;
+    overview: string;
+    land_preparation: string[];
+    sowing_time: string[];
+    irrigation_schedule: string[];
+    fertilizers: string[];
+    pesticides: string[];
+    harvesting: string[];
 }
 
 export interface DashboardOverview {
@@ -165,6 +304,9 @@ export interface DashboardOverview {
         nitrogen: number;
         phosphorus: number;
         potassium: number;
+        temperature: number;
+        rainfall: number;
+        climate_summary: string;
     } | null;
     yield_forecast?: {
         crop_name: string;
@@ -227,4 +369,3 @@ export interface InventoryStats {
     total_value: number;
     categories_count: number;
 }
-

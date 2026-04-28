@@ -8,32 +8,86 @@ import {
   MapPin,
   Target,
   TestTube,
+  Thermometer,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
 
-import { farmApi } from "../services/api";
-import { Farm, FarmCropCycle } from "../types/api";
+import { farmApi, soilTestApi } from "../services/api";
+import { Farm, FarmCropCycle, SoilTest, SoilTestCreatePayload } from "../types/api";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
 import { Progress } from "./ui/progress";
+
+const emptySoilForm = {
+  soil_ph: "",
+  nitrogen: "",
+  phosphorus: "",
+  potassium: "",
+  soil_moisture: "",
+  temperature: "",
+};
 
 export function MyFarmPage() {
   const [farm, setFarm] = useState<Farm | null>(null);
+  const [latestSoilTest, setLatestSoilTest] = useState<SoilTest | null>(null);
+  const [soilForm, setSoilForm] = useState(emptySoilForm);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    farmApi.getAllFarms().then((farms) => setFarm(farms[0] || null)).catch(() => setFarm(null));
+    const loadFarm = async () => {
+      try {
+        const farms = await farmApi.getAllFarms();
+        const primaryFarm = farms[0] || null;
+        setFarm(primaryFarm);
+        if (!primaryFarm) {
+          setLatestSoilTest(null);
+          return;
+        }
+        try {
+          const soilTest = await soilTestApi.getLatestByFarm(primaryFarm.id);
+          setLatestSoilTest(soilTest);
+          setSoilForm({
+            soil_ph: String(soilTest.soil_ph),
+            nitrogen: String(soilTest.nitrogen),
+            phosphorus: String(soilTest.phosphorus),
+            potassium: String(soilTest.potassium),
+            soil_moisture: String(soilTest.soil_moisture),
+            temperature: String(soilTest.temperature),
+          });
+        } catch {
+          const fallbackSoilTest = primaryFarm.soil_tests?.[0] || null;
+          setLatestSoilTest(fallbackSoilTest);
+          if (fallbackSoilTest) {
+            setSoilForm({
+              soil_ph: String(fallbackSoilTest.soil_ph),
+              nitrogen: String(fallbackSoilTest.nitrogen),
+              phosphorus: String(fallbackSoilTest.phosphorus),
+              potassium: String(fallbackSoilTest.potassium),
+              soil_moisture: String(fallbackSoilTest.soil_moisture),
+              temperature: String(fallbackSoilTest.temperature),
+            });
+          }
+        }
+      } catch {
+        setFarm(null);
+        setLatestSoilTest(null);
+      }
+    };
+
+    void loadFarm();
   }, []);
 
-  const latestSoilTest = farm?.soil_tests?.[0];
   const activeCrop = useMemo(
     () => farm?.crop_cycles?.find((cycle) => cycle.status === "active") || null,
-    [farm]
+    [farm],
   );
   const cropHistory = useMemo(
     () => (farm?.crop_cycles || []).filter((cycle) => cycle.status === "completed"),
-    [farm]
+    [farm],
   );
 
   if (!farm) {
@@ -56,10 +110,48 @@ export function MyFarmPage() {
           0,
           ((Date.now() - new Date(activeCrop.sowing_date).getTime()) /
             (new Date(activeCrop.expected_harvest_date).getTime() - new Date(activeCrop.sowing_date).getTime())) *
-            100
-        )
+            100,
+        ),
       )
     : 0;
+
+  const submitSoilTest = async () => {
+    setSaveMessage(null);
+    const payload: SoilTestCreatePayload = {
+      farm_id: farm.id,
+      soil_ph: Number(soilForm.soil_ph),
+      nitrogen: Number(soilForm.nitrogen),
+      phosphorus: Number(soilForm.phosphorus),
+      potassium: Number(soilForm.potassium),
+      soil_moisture: Number(soilForm.soil_moisture),
+      temperature: Number(soilForm.temperature),
+    };
+
+    if (Object.values(payload).some((value) => Number.isNaN(value))) {
+      setSaveMessage("Please fill all soil test values before saving.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const saved = await soilTestApi.create(payload);
+      const latest = await soilTestApi.getLatestByFarm(farm.id);
+      setLatestSoilTest(latest);
+      setFarm((current) =>
+        current
+          ? {
+              ...current,
+              soil_tests: [saved, ...(current.soil_tests || []).filter((item) => item.id !== saved.id)],
+            }
+          : current,
+      );
+      setSaveMessage("Soil test saved successfully.");
+    } catch {
+      setSaveMessage("Unable to save soil test right now.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -99,16 +191,16 @@ export function MyFarmPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center">
                         <Droplets className="w-5 h-5 mr-2 text-blue-500" />
-                        <span className="font-medium">Estimated moisture</span>
+                        <span className="font-medium">Soil moisture</span>
                       </div>
-                      <span className="text-2xl font-bold text-blue-600">65%</span>
+                      <span className="text-2xl font-bold text-blue-600">{latestSoilTest?.soil_moisture ?? 0}%</span>
                     </div>
-                    <Progress value={65} className="h-4 bg-blue-100" />
+                    <Progress value={latestSoilTest?.soil_moisture ?? 0} className="h-4 bg-blue-100" />
                   </div>
 
                   <div>
@@ -117,9 +209,20 @@ export function MyFarmPage() {
                         <TestTube className="w-5 h-5 mr-2 text-green-500" />
                         <span className="font-medium">Soil pH</span>
                       </div>
-                      <span className="text-2xl font-bold text-green-600">{latestSoilTest?.ph ?? "-"}</span>
+                      <span className="text-2xl font-bold text-green-600">{latestSoilTest?.soil_ph ?? "-"}</span>
                     </div>
                     <div className="text-sm text-gray-600">Last tested: {latestSoilTest?.test_date?.slice(0, 10) || "N/A"}</div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <Thermometer className="w-5 h-5 mr-2 text-orange-500" />
+                        <span className="font-medium">Soil temperature</span>
+                      </div>
+                      <span className="text-2xl font-bold text-orange-600">{latestSoilTest?.temperature ?? "-"}C</span>
+                    </div>
+                    <div className="text-sm text-gray-600">Recorded with latest soil test.</div>
                   </div>
                 </div>
 
@@ -128,6 +231,34 @@ export function MyFarmPage() {
                   <NutrientCard label="Phosphorus" value={latestSoilTest?.phosphorus ?? 0} />
                   <NutrientCard label="Potassium" value={latestSoilTest?.potassium ?? 0} />
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center" style={{ fontFamily: "Poppins" }}>
+                  <TestTube className="w-6 h-6 mr-3 text-primary" />
+                  Save Soil Test
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <InputField label="Soil pH" value={soilForm.soil_ph} onChange={(value) => setSoilForm((current) => ({ ...current, soil_ph: value }))} />
+                  <InputField label="Nitrogen" value={soilForm.nitrogen} onChange={(value) => setSoilForm((current) => ({ ...current, nitrogen: value }))} />
+                  <InputField label="Phosphorus" value={soilForm.phosphorus} onChange={(value) => setSoilForm((current) => ({ ...current, phosphorus: value }))} />
+                  <InputField label="Potassium" value={soilForm.potassium} onChange={(value) => setSoilForm((current) => ({ ...current, potassium: value }))} />
+                  <InputField label="Soil moisture (%)" value={soilForm.soil_moisture} onChange={(value) => setSoilForm((current) => ({ ...current, soil_moisture: value }))} />
+                  <InputField label="Temperature (C)" value={soilForm.temperature} onChange={(value) => setSoilForm((current) => ({ ...current, temperature: value }))} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-600">Saving a soil test updates My Farm and Dashboard vitals.</p>
+                  <Button onClick={() => void submitSoilTest()} disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Save Soil Test"}
+                  </Button>
+                </div>
+                {saveMessage && <p className="text-sm text-gray-600">{saveMessage}</p>}
               </CardContent>
             </Card>
           </motion.div>
@@ -255,6 +386,15 @@ function HistoryItem({ cycle }: { cycle: FarmCropCycle }) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InputField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

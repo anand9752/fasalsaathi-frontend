@@ -5,7 +5,7 @@ import axios, {
     InternalAxiosRequestConfig,
     AxiosRequestConfig
 } from 'axios';
-import { Crop, CropRecommendation, DashboardOverview, Disease, Farm, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, MarketPrice, RegisterPayload, SoilTest, User } from '../types/api';
+import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
 
 // Error interface for backend responses
 interface ApiError {
@@ -128,6 +128,21 @@ export const farmApi = {
         apiClient.get<SoilTest[]>(`/farms/${farmId}/soil-tests`).then(response => response.data)
 };
 
+export const soilTestApi = {
+    create: (payload: SoilTestCreatePayload) =>
+        apiClient.post<SoilTest>('/soil-test', payload).then(response => response.data),
+
+    getLatestByFarm: (farmId: number) =>
+        apiClient.get<SoilTest>(`/soil-test/${farmId}`).then(response => response.data),
+};
+
+export const farmCalendarApi = {
+    getByFarm: (farmId: number, params?: { lat?: number; lon?: number }) =>
+        apiClient.get<FarmCalendarResponse>('/farm-calendar', {
+            params: { farm_id: farmId, ...params }
+        }).then(response => response.data),
+};
+
 // Crop API
 export const cropApi = {
     detectDisease: (image: File) => {
@@ -138,13 +153,11 @@ export const cropApi = {
         }).then(response => response.data);
     },
 
-    getCropRecommendations: (params: { 
-        soil_type: string, 
-        season: string, 
-        location: string,
-        irrigation_type?: string,
-        search?: string
-    }) => apiClient.post<CropRecommendation[]>('/crops/recommendation', params).then(response => response.data),
+    getCropRecommendations: (params: CropRecommendationRequest) =>
+        apiClient.post<CropRecommendation[]>('/crop-recommendation', params).then(response => response.data),
+
+    getCropDetail: (cropName: string) =>
+        apiClient.get<CropDetailResponse>('/crop-detail', { params: { crop_name: cropName } }).then(response => response.data),
     
     predictYield: (params: {
         crop_id: number,
@@ -161,15 +174,15 @@ export const cropApi = {
 // Weather API
 export const weatherApi = {
     getCurrentWeather: (params?: { lat?: number; lon?: number; location?: string }) => 
-        apiClient.get<any>('/weather/current', { params })
+        apiClient.get<WeatherCurrentResponse>('/weather/current', { params })
             .then(response => response.data)
             .catch((error: AxiosError<ApiError>) => {
                 console.error('Error fetching weather:', error.response?.data?.detail);
                 throw error;
             }),
     
-    getWeatherForecast: (params?: { location?: string; days?: number }) => 
-        apiClient.get<any>('/weather/forecast', { 
+    getWeatherForecast: (params?: { lat?: number; lon?: number; location?: string; days?: number }) => 
+        apiClient.get<WeatherForecastResponse>('/weather/forecast', { 
             params
         })
             .then(response => response.data)
@@ -179,7 +192,7 @@ export const weatherApi = {
             }),
 
     getWeatherHistory: (location?: string, days: number = 7) =>
-        apiClient.get<any>('/weather/forecast', { params: { location, days } }).then(response => response.data),
+        apiClient.get<WeatherForecastResponse>('/weather/forecast', { params: { location, days } }).then(response => response.data),
     
     getWeatherIcon: (iconCode: string) =>
         `https://openweathermap.org/img/wn/${iconCode}@2x.png`
@@ -187,7 +200,7 @@ export const weatherApi = {
 
 // Market API
 export const marketApi = {
-    getCurrentPrices: (params?: { market?: string, crop_id?: number }) => 
+    getCurrentPrices: (params?: { state?: string, market?: string, commodity?: string, crop_id?: number }) => 
         apiClient.get<MarketPrice[]>('/market/prices/current', { params })
             .then(response => response.data)
             .catch((error: AxiosError<ApiError>) => {
@@ -262,6 +275,8 @@ export const inventoryApi = {
 export default {
     auth: authApi,
     farms: farmApi,
+    farmCalendar: farmCalendarApi,
+    soilTests: soilTestApi,
     crops: cropApi,
     weather: weatherApi,
     market: marketApi,

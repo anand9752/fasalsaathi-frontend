@@ -8,6 +8,7 @@ import {
   MapPin,
   Target,
   TestTube,
+  Thermometer,
   TrendingUp,
   Wheat,
 } from "lucide-react";
@@ -126,6 +127,27 @@ export function BalancedDashboard({ onNavigate }: { onNavigate?: (page: string) 
                   <div>P: {vitals?.phosphorus ?? "-"}</div>
                   <div>K: {vitals?.potassium ?? "-"}</div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                  <span className="flex items-center">
+                    <Thermometer className="w-4 h-4 mr-2 text-orange-500" />
+                    Soil temp
+                  </span>
+                  <span className="font-semibold text-gray-900">{vitals?.temperature ?? "-"}C</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                  <span className="flex items-center">
+                    <Droplets className="w-4 h-4 mr-2 text-blue-500" />
+                    Rainfall
+                  </span>
+                  <span className="font-semibold text-gray-900">{vitals?.rainfall ?? "-"} mm</span>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-blue-50 px-3 py-3 text-sm text-blue-800">
+                Climate summary: {vitals?.climate_summary || "Live weather summary unavailable."}
               </div>
 
               <Button variant="outline" className="w-full" onClick={() => onNavigate?.("my-farm")}>

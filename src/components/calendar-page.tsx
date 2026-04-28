@@ -1,421 +1,951 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight,
-  Droplets,
-  Leaf,
-  Bug,
+import {
   AlertTriangle,
-  Filter,
-  Clock,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  CloudRain,
+  Droplets,
+  FlaskConical,
+  Leaf,
+  Loader2,
   MapPin,
-  CheckCircle
+  ShieldAlert,
+  Sprout,
+  Thermometer,
+  Wind,
 } from "lucide-react";
 
-interface CalendarTask {
-  id: string;
-  title: string;
-  titleHindi: string;
-  description: string;
-  why: string;
-  how: string;
-  type: 'irrigation' | 'fertilization' | 'pest-alert' | 'general';
-  date: Date;
-  time?: string;
-  priority: 'high' | 'medium' | 'low';
-  completed?: boolean;
-}
+import { farmApi, farmCalendarApi } from "../services/api";
+import {
+  Farm,
+  FarmCalendarHealthMetric,
+  FarmCalendarRecommendation,
+  FarmCalendarResponse,
+  FarmCalendarTask,
+  FarmCalendarTimelineItem,
+  FarmCalendarWeatherAlert,
+} from "../types/api";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Progress } from "./ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+
+type ViewMode = "daily" | "weekly" | "monthly";
+type FilterMode = "all" | FarmCalendarTask["category"];
+
+type BrowserCoords = {
+  lat: number;
+  lon: number;
+} | null;
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [selectedTask, setSelectedTask] = useState<CalendarTask | null>(null);
+  const [farm, setFarm] = useState<Farm | null>(null);
+  const [calendarData, setCalendarData] = useState<FarmCalendarResponse | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => stripTime(new Date()));
+  const [viewMode, setViewMode] = useState<ViewMode>("monthly");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [selectedTask, setSelectedTask] = useState<FarmCalendarTask | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [locationMode, setLocationMode] = useState("Using saved farm location");
 
-  // Sample tasks data
-  const tasks: CalendarTask[] = [
-    {
-      id: '1',
-      title: 'Evening Irrigation',
-      titleHindi: 'शाम की सिंचाई',
-      description: 'Water the soybean field in the evening',
-      why: 'मिट्टी में नमी 45% से कम हो गई है। सोयाबीन के पौधे फूल आने के चरण में हैं और अधिक पानी की जरूरत है।',
-      how: 'ड्रिप सिंचाई का उपयोग करें। 2-3 घंटे तक पानी दें। शाम 6-8 बजे का समय सबसे अच्छा है।',
-      type: 'irrigation',
-      date: new Date(2024, 8, 15),
-      time: '6:00 PM',
-      priority: 'high'
-    },
-    {
-      id: '2',
-      title: 'Apply Urea Fertilizer',
-      titleHindi: 'यूरिया उर्वरक डालें',
-      description: 'Apply urea fertilizer to boost growth',
-      why: 'फसल वानस्पतिक विकास के चरण में है और नाइट्रोजन की आवश्यकता है। मिट्टी परीक्षण में नाइट्रोजन की कमी दिखाई गई है।',
-      how: '50 kg/एकड़ यूरिया डालें। पहले खेत में पानी दें, फिर उर्वरक छिड़कें। बारिश से पहले डालना बेहतर होगा।',
-      type: 'fertilization',
-      date: new Date(2024, 8, 17),
-      time: '7:00 AM',
-      priority: 'medium'
-    },
-    {
-      id: '3',
-      title: 'Pest Inspection',
-      titleHindi: 'कीट निरीक्षण',
-      description: 'Check for white fly infestation',
-      why: 'मौसम की स्थिति सफेद मक्खी के लिए अनुकूल है। आस-पास के खेतों में सफेद मक्खी का प्रकोप देखा गया है।',
-      how: 'पत्तियों के नीचे की तरफ देखें। पीले चिपचिपे ट्रैप लगाएं। संक्रमित पत्तियों को हटा दें।',
-      type: 'pest-alert',
-      date: new Date(2024, 8, 16),
-      time: '8:00 AM',
-      priority: 'high'
-    },
-    {
-      id: '4',
-      title: 'Soil pH Testing',
-      titleHindi: 'मिट्टी pH टेस्ट',
-      description: 'Test soil pH levels',
-      why: 'नियमित मिट्टी जांच फसल की अच्छी उत्पादकता के लिए जरूरी है। पिछली जांच 6 महीने पहले हुई थी।',
-      how: 'मिट्टी के नमूने 3-4 जगह से लें। स्थानीय कृषि केंद्र में जांच कराएं या pH मीटर का उपयोग करें।',
-      type: 'general',
-      date: new Date(2024, 8, 20),
-      time: '10:00 AM',
-      priority: 'low'
+  useEffect(() => {
+    let isActive = true;
+
+    const loadCalendar = async () => {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const farms = await farmApi.getAllFarms();
+        const primaryFarm = farms[0] || null;
+
+        if (!isActive) {
+          return;
+        }
+
+        setFarm(primaryFarm);
+
+        if (!primaryFarm) {
+          setCalendarData(null);
+          return;
+        }
+
+        const coords = await getBrowserCoords();
+        if (!isActive) {
+          return;
+        }
+
+        setLocationMode(coords ? "Using current device location for rainfall" : "Using saved farm location");
+
+        const calendar = await farmCalendarApi.getByFarm(primaryFarm.id, coords || undefined);
+        if (!isActive) {
+          return;
+        }
+
+        setCalendarData(calendar);
+      } catch {
+        if (!isActive) {
+          return;
+        }
+        setCalendarData(null);
+        setErrorMessage("Unable to load the smart farm calendar right now.");
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadCalendar();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const tasks = useMemo(() => {
+    const rawTasks = calendarData?.tasks || [];
+    const filtered = filterMode === "all" ? rawTasks : rawTasks.filter((task) => task.category === filterMode);
+    return filtered.slice().sort((left, right) => {
+      const dateCompare = parseTaskDate(left.date).getTime() - parseTaskDate(right.date).getTime();
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+      return priorityRank(left.priority) - priorityRank(right.priority);
+    });
+  }, [calendarData, filterMode]);
+
+  const selectedDayTasks = useMemo(
+    () => tasks.filter((task) => isSameDay(parseTaskDate(task.date), selectedDate)),
+    [selectedDate, tasks],
+  );
+
+  const weekTasks = useMemo(() => {
+    if (viewMode !== "weekly") {
+      return [];
     }
-  ];
+    const endDate = addDays(selectedDate, 6);
+    return tasks.filter((task) => {
+      const taskDate = parseTaskDate(task.date);
+      return taskDate >= selectedDate && taskDate <= endDate;
+    });
+  }, [selectedDate, tasks, viewMode]);
 
-  const getTaskColor = (type: string) => {
-    switch (type) {
-      case 'irrigation': return 'bg-green-500';
-      case 'fertilization': return 'bg-blue-500';
-      case 'pest-alert': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
+  const upcomingTasks = useMemo(
+    () => tasks.filter((task) => parseTaskDate(task.date) >= stripTime(new Date())).slice(0, 6),
+    [tasks],
+  );
 
-  const getTaskIcon = (type: string) => {
-    switch (type) {
-      case 'irrigation': return <Droplets className="w-4 h-4" />;
-      case 'fertilization': return <Leaf className="w-4 h-4" />;
-      case 'pest-alert': return <Bug className="w-4 h-4" />;
-      default: return <Calendar className="w-4 h-4" />;
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardContent className="flex items-center justify-center gap-3 p-12 text-gray-600">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading smart calendar, crop stage, and rainfall signals...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const filteredTasks = filterType === 'all' 
-    ? tasks 
-    : tasks.filter(task => task.type === filterType);
+  if (!farm) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardContent className="p-10 text-center text-gray-600">
+            Connect your first farm to unlock crop-aware planning, irrigation alerts, and auto-generated tasks.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!calendarData) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardContent className="p-10 text-center text-gray-600">
+            {errorMessage || "Smart calendar data is unavailable right now."}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const cropContext = calendarData.crop_context;
+  const weather = calendarData.weather;
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800" style={{ fontFamily: 'Poppins' }}>
-            कैलेंडर
-          </h1>
-          <p className="text-gray-600 mt-1">अपने खेती के कार्यों को व्यवस्थित करें</p>
-        </div>
-
-        {/* View Toggle */}
-        <div className="flex items-center space-x-4">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            {['daily', 'weekly', 'monthly'].map((mode) => (
-              <Button
-                key={mode}
-                variant={viewMode === mode ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode(mode as any)}
-                className="px-4"
-              >
-                {mode === 'daily' && 'दैनिक'}
-                {mode === 'weekly' && 'साप्ताहिक'}
-                {mode === 'monthly' && 'मासिक'}
-              </Button>
-            ))}
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: "Poppins" }}>
+              Smart Farm Calendar
+            </h1>
+            <p className="mt-2 text-gray-600">
+              Auto-scheduled tasks for {farm.name}, driven by crop stage, soil signals, and OpenWeather rainfall.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {weather.location}
+              </span>
+              <span>{locationMode}</span>
+              {weather.is_stale && <Badge variant="outline">Weather cache</Badge>}
+            </div>
           </div>
 
-          {/* Filter */}
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-48">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="फ़िल्टर करें" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">सभी कार्य</SelectItem>
-              <SelectItem value="irrigation">सिंचाई</SelectItem>
-              <SelectItem value="fertilization">उर्वरक</SelectItem>
-              <SelectItem value="pest-alert">कीट चेतावनी</SelectItem>
-              <SelectItem value="general">सामान्य</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+              {(["daily", "weekly", "monthly"] as ViewMode[]).map((mode) => (
+                <Button
+                  key={mode}
+                  variant={viewMode === mode ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode(mode)}
+                  className="capitalize"
+                >
+                  {mode}
+                </Button>
+              ))}
+            </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar Grid */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center">
-                <Calendar className="w-5 h-5 mr-2" />
-                September 2024
+            <Select value={filterMode} onValueChange={(value) => setFilterMode(value as FilterMode)}>
+              <SelectTrigger className="w-[180px] bg-white">
+                <SelectValue placeholder="Filter tasks" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tasks</SelectItem>
+                <SelectItem value="irrigation">Irrigation</SelectItem>
+                <SelectItem value="fertilizer">Fertilizer</SelectItem>
+                <SelectItem value="pest">Pest risk</SelectItem>
+                <SelectItem value="weather">Weather</SelectItem>
+                <SelectItem value="milestone">Milestones</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-6">
+          <Card className="lg:col-span-2 border-0 bg-gradient-to-br from-emerald-50 via-white to-amber-50 shadow-lg shadow-emerald-100/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                <Sprout className="h-5 w-5 text-emerald-600" />
+                Crop Context
               </CardTitle>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
             </CardHeader>
             <CardContent>
-              <CalendarGrid tasks={filteredTasks} onTaskClick={setSelectedTask} />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Task List Sidebar */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>आज के कार्य</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {filteredTasks
-                .filter(task => task.date.toDateString() === new Date().toDateString())
-                .map((task) => (
-                <motion.div
-                  key={task.id}
-                  whileHover={{ scale: 1.02 }}
-                  className="p-3 border rounded-lg cursor-pointer hover:shadow-md transition-all"
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-3 h-3 rounded-full ${getTaskColor(task.type)}`} />
-                      <span className="font-medium">{task.titleHindi}</span>
+              {cropContext ? (
+                <div className="space-y-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-semibold text-gray-900">
+                          {cropContext.crop_name_hindi} ({cropContext.crop_name})
+                        </h2>
+                        <Badge className={getPriorityBadgeClass("optimal")}>{cropContext.season}</Badge>
+                      </div>
+                      <p className="mt-2 text-gray-600">
+                        Day {cropContext.days_since_sowing} of {cropContext.total_duration_days} · Current stage:{" "}
+                        <span className="font-medium text-gray-900">
+                          {cropContext.current_stage_hindi} ({cropContext.current_stage})
+                        </span>
+                      </p>
                     </div>
-                    <Badge variant={task.priority === 'high' ? 'destructive' : 'secondary'}>
-                      {task.priority === 'high' && 'उच्च'}
-                      {task.priority === 'medium' && 'मध्यम'}
-                      {task.priority === 'low' && 'कम'}
-                    </Badge>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+                      <StatChip label="Sowing" value={formatDate(cropContext.sowing_date)} />
+                      <StatChip label="Harvest" value={formatDate(cropContext.expected_harvest_date)} />
+                    </div>
                   </div>
-                  {task.time && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {task.time}
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+                      <span>Stage progress</span>
+                      <span>{cropContext.stage_progress_percent}%</span>
                     </div>
-                  )}
-                </motion.div>
-              ))}
+                    <Progress value={cropContext.stage_progress_percent} className="h-3 bg-emerald-100" />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-600">Add an active crop cycle to generate stage-based planning.</p>
+              )}
             </CardContent>
           </Card>
 
-          {/* Legend */}
-          <Card>
+          <Card className="border-0 bg-slate-900 text-white shadow-lg shadow-slate-200/50">
             <CardHeader>
-              <CardTitle>कार्य प्रकार</CardTitle>
+              <CardTitle className="flex items-center gap-2" style={{ fontFamily: "Poppins" }}>
+                <CloudRain className="h-5 w-5 text-cyan-300" />
+                Live Weather Pulse
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {[
-                { type: 'irrigation', label: 'सिंचाई', color: 'bg-green-500' },
-                { type: 'fertilization', label: 'उर्वरक', color: 'bg-blue-500' },
-                { type: 'pest-alert', label: 'कीट चेतावनी', color: 'bg-red-500' },
-                { type: 'general', label: 'सामान्य', color: 'bg-gray-500' }
-              ].map((item) => (
-                <div key={item.type} className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${item.color}`} />
-                  <span className="text-sm">{item.label}</span>
-                </div>
-              ))}
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <WeatherMetric label="Rain now" value={`${weather.rainfall.toFixed(1)} mm`} />
+                <WeatherMetric label="Next 3 days" value={`${weather.forecast_rainfall.toFixed(1)} mm`} />
+                <WeatherMetric label="Temperature" value={`${weather.temperature.toFixed(1)} C`} />
+                <WeatherMetric label="Wind" value={`${weather.wind_speed.toFixed(1)} m/s`} />
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                {weather.summary}. Humidity {weather.humidity.toFixed(0)}%.
+              </div>
             </CardContent>
           </Card>
         </div>
-      </div>
 
-      {/* Task Detail Modal */}
-      <TaskDetailModal 
-        task={selectedTask} 
-        isOpen={!!selectedTask}
-        onClose={() => setSelectedTask(null)}
-      />
+        <Card className="mb-6 border-0 bg-white shadow-md shadow-gray-200/70">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+              <Leaf className="h-5 w-5 text-emerald-600" />
+              Crop Growth Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GrowthTimeline timeline={calendarData.growth_timeline} />
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Card className="border-0 bg-white shadow-md shadow-gray-200/70">
+              <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                  <CalendarDays className="h-5 w-5 text-emerald-600" />
+                  Task Calendar
+                </CardTitle>
+
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentMonth(addMonths(currentMonth, -1))}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="min-w-[150px] text-center text-sm font-medium text-gray-700">
+                    {formatMonthYear(currentMonth)}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {viewMode === "monthly" && (
+                  <CalendarGrid
+                    currentMonth={currentMonth}
+                    selectedDate={selectedDate}
+                    tasks={tasks}
+                    onSelectDate={setSelectedDate}
+                    onOpenTask={setSelectedTask}
+                  />
+                )}
+
+                {viewMode === "weekly" && (
+                  <WeeklyAgenda
+                    selectedDate={selectedDate}
+                    tasks={weekTasks}
+                    onSelectDate={setSelectedDate}
+                    onOpenTask={setSelectedTask}
+                  />
+                )}
+
+                {viewMode === "daily" && (
+                  <DailyAgenda
+                    selectedDate={selectedDate}
+                    tasks={selectedDayTasks}
+                    onOpenTask={setSelectedTask}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-md shadow-gray-200/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                  <Clock3 className="h-5 w-5 text-amber-600" />
+                  {viewMode === "daily" ? "Selected Day Tasks" : "Upcoming Auto-Scheduled Tasks"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(viewMode === "daily" ? selectedDayTasks : upcomingTasks).length ? (
+                  (viewMode === "daily" ? selectedDayTasks : upcomingTasks).map((task) => (
+                    <TaskRow key={task.id} task={task} onOpenTask={setSelectedTask} />
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-600">No tasks match the current date or filter.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="border-0 bg-white shadow-md shadow-gray-200/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                  <FlaskConical className="h-5 w-5 text-sky-600" />
+                  Farm Health Panel
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {calendarData.farm_health.map((metric) => (
+                  <HealthMetricRow key={metric.key} metric={metric} />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-md shadow-gray-200/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                  <ShieldAlert className="h-5 w-5 text-amber-600" />
+                  Smart Recommendations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {calendarData.recommendations.map((item) => (
+                  <RecommendationRow key={`${item.title}-${item.message}`} recommendation={item} />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 bg-white shadow-md shadow-gray-200/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                  <AlertTriangle className="h-5 w-5 text-rose-600" />
+                  Weather Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {calendarData.weather_alerts.map((alert) => (
+                  <WeatherAlertRow key={`${alert.title}-${alert.message}`} alert={alert} />
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </motion.div>
+
+      <TaskDialog task={selectedTask} onClose={() => setSelectedTask(null)} />
     </div>
   );
 }
 
-function CalendarGrid({ tasks, onTaskClick }: { tasks: CalendarTask[], onTaskClick: (task: CalendarTask) => void }) {
-  const daysOfWeek = ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि'];
-  const today = new Date();
-  
-  // Generate calendar days for September 2024
-  const daysInMonth = new Date(2024, 8, 0).getDate();
-  const firstDay = new Date(2024, 8, 1).getDay();
-  
-  const calendarDays = [];
-  
-  // Add empty cells for days before month starts
-  for (let i = 0; i < firstDay; i++) {
-    calendarDays.push(null);
+function GrowthTimeline({ timeline }: { timeline: FarmCalendarTimelineItem[] }) {
+  if (!timeline.length) {
+    return <p className="text-sm text-gray-600">Timeline appears after an active crop is connected.</p>;
   }
-  
-  // Add days of the month
-  for (let day = 1; day <= 30; day++) {
-    calendarDays.push(day);
-  }
-
-  const getTasksForDay = (day: number | null) => {
-    if (!day) return [];
-    return tasks.filter(task => task.date.getDate() === day);
-  };
 
   return (
-    <div className="grid grid-cols-7 gap-1">
-      {/* Header */}
-      {daysOfWeek.map((day) => (
-        <div key={day} className="p-2 text-center font-medium text-gray-600 border-b">
-          {day}
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+      {timeline.map((stage) => (
+        <div
+          key={`${stage.name}-${stage.start_day}`}
+          className={`rounded-2xl border p-4 transition-all ${
+            stage.is_current
+              ? "border-emerald-300 bg-emerald-50 shadow-sm shadow-emerald-100"
+              : "border-gray-200 bg-gray-50"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-gray-900">{stage.name}</p>
+            {stage.is_current && <Badge className="bg-emerald-600 text-white">Current</Badge>}
+          </div>
+          <p className="mt-1 text-sm text-gray-600">{stage.name_hindi}</p>
+          <p className="mt-3 text-xs uppercase tracking-wide text-gray-500">
+            Day {stage.start_day} - {stage.end_day}
+          </p>
         </div>
       ))}
-      
-      {/* Calendar Days */}
-      {calendarDays.map((day, index) => {
-        const dayTasks = getTasksForDay(day);
-        const isToday = day === today.getDate();
-        
+    </div>
+  );
+}
+
+function CalendarGrid({
+  currentMonth,
+  selectedDate,
+  tasks,
+  onSelectDate,
+  onOpenTask,
+}: {
+  currentMonth: Date;
+  selectedDate: Date;
+  tasks: FarmCalendarTask[];
+  onSelectDate: (value: Date) => void;
+  onOpenTask: (task: FarmCalendarTask) => void;
+}) {
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const leadingDays = monthStart.getDay();
+  const totalDays = monthEnd.getDate();
+  const cells: Array<Date | null> = [];
+
+  for (let index = 0; index < leadingDays; index += 1) {
+    cells.push(null);
+  }
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    cells.push(new Date(monthStart.getFullYear(), monthStart.getMonth(), day));
+  }
+
+  return (
+    <div className="grid grid-cols-7 gap-2">
+      {WEEKDAY_LABELS.map((label) => (
+        <div key={label} className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+          {label}
+        </div>
+      ))}
+
+      {cells.map((value, index) => {
+        if (!value) {
+          return <div key={`empty-${index}`} className="min-h-[120px] rounded-2xl border border-transparent bg-transparent" />;
+        }
+
+        const dayTasks = tasks.filter((task) => isSameDay(parseTaskDate(task.date), value));
+        const highestPriority = dayTasks.length
+          ? dayTasks.slice().sort((left, right) => priorityRank(left.priority) - priorityRank(right.priority))[0].priority
+          : null;
+        const isSelected = isSameDay(value, selectedDate);
+        const isToday = isSameDay(value, stripTime(new Date()));
+
         return (
-          <div 
-            key={index} 
-            className={`min-h-[100px] p-2 border border-gray-100 ${
-              isToday ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+          <button
+            key={value.toISOString()}
+            type="button"
+            onClick={() => onSelectDate(value)}
+            className={`min-h-[120px] rounded-2xl border p-3 text-left transition-all ${
+              isSelected
+                ? "border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100"
+                : "border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/40"
             }`}
           >
-            {day && (
-              <>
-                <div className={`text-sm font-medium mb-1 ${
-                  isToday ? 'text-blue-600' : 'text-gray-600'
-                }`}>
-                  {day}
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-sm font-semibold ${isToday ? "text-emerald-700" : "text-gray-700"}`}>
+                {value.getDate()}
+              </span>
+              {highestPriority && <span className={`h-3 w-3 rounded-full ${getPriorityDotClass(highestPriority)}`} />}
+            </div>
+
+            <div className="space-y-2">
+              {dayTasks.slice(0, 2).map((task) => (
+                <div
+                  key={task.id}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenTask(task);
+                  }}
+                  className={`rounded-xl px-2 py-2 text-xs font-medium ${getPrioritySurfaceClass(task.priority)}`}
+                >
+                  {task.task}
                 </div>
-                <div className="space-y-1">
-                  {dayTasks.slice(0, 3).map((task) => (
-                    <motion.div
-                      key={task.id}
-                      whileHover={{ scale: 1.05 }}
-                      onClick={() => onTaskClick(task)}
-                      className={`w-full h-2 rounded cursor-pointer ${getTaskColor(task.type)} opacity-80 hover:opacity-100`}
-                      title={task.titleHindi}
-                    />
-                  ))}
-                  {dayTasks.length > 3 && (
-                    <div className="text-xs text-gray-500">+{dayTasks.length - 3} more</div>
-                  )}
-                </div>
-              </>
-            )}
+              ))}
+              {dayTasks.length > 2 && <p className="text-xs text-gray-500">+{dayTasks.length - 2} more tasks</p>}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeeklyAgenda({
+  selectedDate,
+  tasks,
+  onSelectDate,
+  onOpenTask,
+}: {
+  selectedDate: Date;
+  tasks: FarmCalendarTask[];
+  onSelectDate: (value: Date) => void;
+  onOpenTask: (task: FarmCalendarTask) => void;
+}) {
+  const days = Array.from({ length: 7 }, (_, index) => addDays(selectedDate, index));
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {days.map((day) => {
+        const dayTasks = tasks.filter((task) => isSameDay(parseTaskDate(task.date), day));
+        return (
+          <div key={day.toISOString()} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <button type="button" className="w-full text-left" onClick={() => onSelectDate(day)}>
+              <p className="text-xs uppercase tracking-wide text-gray-500">{WEEKDAY_LABELS[day.getDay()]}</p>
+              <p className="mt-1 text-lg font-semibold text-gray-900">{formatDate(day)}</p>
+            </button>
+            <div className="mt-4 space-y-2">
+              {dayTasks.length ? (
+                dayTasks.map((task) => <TaskRow key={task.id} task={task} onOpenTask={onOpenTask} compact />)
+              ) : (
+                <p className="text-sm text-gray-500">No planned tasks.</p>
+              )}
+            </div>
           </div>
         );
       })}
     </div>
   );
-
-  function getTaskColor(type: string) {
-    switch (type) {
-      case 'irrigation': return 'bg-green-500';
-      case 'fertilization': return 'bg-blue-500';
-      case 'pest-alert': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  }
 }
 
-function TaskDetailModal({ task, isOpen, onClose }: { 
-  task: CalendarTask | null, 
-  isOpen: boolean, 
-  onClose: () => void 
+function DailyAgenda({
+  selectedDate,
+  tasks,
+  onOpenTask,
+}: {
+  selectedDate: Date;
+  tasks: FarmCalendarTask[];
+  onOpenTask: (task: FarmCalendarTask) => void;
 }) {
-  if (!task) return null;
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <p className="text-sm uppercase tracking-wide text-emerald-700">Focused day</p>
+        <p className="mt-1 text-2xl font-semibold text-emerald-900">{formatDate(selectedDate)}</p>
+      </div>
+      {tasks.length ? (
+        tasks.map((task) => <TaskRow key={task.id} task={task} onOpenTask={onOpenTask} />)
+      ) : (
+        <p className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+          No task is scheduled for this day.
+        </p>
+      )}
+    </div>
+  );
+}
 
-  const getTaskIcon = (type: string) => {
-    switch (type) {
-      case 'irrigation': return <Droplets className="w-6 h-6 text-green-600" />;
-      case 'fertilization': return <Leaf className="w-6 h-6 text-blue-600" />;
-      case 'pest-alert': return <Bug className="w-6 h-6 text-red-600" />;
-      default: return <Calendar className="w-6 h-6 text-gray-600" />;
-    }
-  };
+function TaskRow({
+  task,
+  onOpenTask,
+  compact = false,
+}: {
+  task: FarmCalendarTask;
+  onOpenTask: (task: FarmCalendarTask) => void;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpenTask(task)}
+      className={`w-full rounded-2xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-emerald-200 hover:shadow-sm ${
+        compact ? "p-3" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={getPriorityBadgeClass(task.priority)}>{formatPriorityLabel(task.priority)}</Badge>
+            <span className="text-xs uppercase tracking-wide text-gray-500">{task.category}</span>
+          </div>
+          <h3 className="mt-2 font-semibold text-gray-900">{task.task_hindi || task.task}</h3>
+          <p className="mt-1 text-sm text-gray-600">{task.task}</p>
+        </div>
+        <div className="text-right text-sm text-gray-500">
+          <p>{formatDate(task.date)}</p>
+          {task.suggested_time && <p className="mt-1">{task.suggested_time}</p>}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function HealthMetricRow({ metric }: { metric: FarmCalendarHealthMetric }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className={`h-3 w-3 rounded-full ${getHealthDotClass(metric.status)}`} />
+          <p className="font-medium text-gray-900">{metric.label}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-semibold text-gray-900">
+            {metric.value}
+            {metric.unit ? ` ${metric.unit}` : ""}
+          </p>
+          <p className="text-xs uppercase tracking-wide text-gray-500">{formatHealthStatus(metric.status)}</p>
+        </div>
+      </div>
+      <p className="mt-2 text-sm text-gray-600">{metric.note}</p>
+    </div>
+  );
+}
+
+function RecommendationRow({ recommendation }: { recommendation: FarmCalendarRecommendation }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-semibold text-gray-900">{recommendation.title}</h3>
+        <Badge className={getPriorityBadgeClass(recommendation.priority)}>{formatPriorityLabel(recommendation.priority)}</Badge>
+      </div>
+      <p className="mt-2 text-sm text-gray-600">{recommendation.message}</p>
+    </div>
+  );
+}
+
+function WeatherAlertRow({ alert }: { alert: FarmCalendarWeatherAlert }) {
+  const icon =
+    alert.title.toLowerCase().includes("wind") ? (
+      <Wind className="h-4 w-4 text-sky-600" />
+    ) : alert.title.toLowerCase().includes("heat") ? (
+      <Thermometer className="h-4 w-4 text-rose-600" />
+    ) : (
+      <CloudRain className="h-4 w-4 text-cyan-600" />
+    );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-3">
-            {getTaskIcon(task.type)}
-            <span style={{ fontFamily: 'Poppins' }}>{task.titleHindi}</span>
-            <Badge variant={task.priority === 'high' ? 'destructive' : 'secondary'}>
-              {task.priority === 'high' && 'उच्च प्राथमिकता'}
-              {task.priority === 'medium' && 'मध्यम प्राथमिकता'}
-              {task.priority === 'low' && 'कम प्राथमिकता'}
-            </Badge>
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6">
-          {/* Task Info */}
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <div className="flex items-center">
-              <Calendar className="w-4 h-4 mr-1" />
-              {task.date.toLocaleDateString('hi-IN')}
-            </div>
-            {task.time && (
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-1" />
-                {task.time}
-              </div>
-            )}
-          </div>
-
-          {/* Why Section */}
-          <div className="space-y-2">
-            <h3 className="flex items-center font-semibold text-lg">
-              <AlertTriangle className="w-5 h-5 mr-2 text-orange-500" />
-              क्यों जरूरी है?
-            </h3>
-            <p className="text-gray-700 leading-relaxed">{task.why}</p>
-          </div>
-
-          {/* How Section */}
-          <div className="space-y-2">
-            <h3 className="flex items-center font-semibold text-lg">
-              <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
-              कैसे करें?
-            </h3>
-            <p className="text-gray-700 leading-relaxed">{task.how}</p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex space-x-3 pt-4">
-            <Button className="flex-1">
-              कार्य पूर्ण करें
-            </Button>
-            <Button variant="outline" className="flex-1">
-              बाद में याद दिलाएं
-            </Button>
-            <Button variant="outline" onClick={onClose}>
-              बंद करें
-            </Button>
-          </div>
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="font-semibold text-gray-900">{alert.title}</h3>
         </div>
+        <Badge className={getPriorityBadgeClass(alert.priority)}>{formatPriorityLabel(alert.priority)}</Badge>
+      </div>
+      <p className="mt-2 text-sm text-gray-600">{alert.message}</p>
+    </div>
+  );
+}
+
+function TaskDialog({
+  task,
+  onClose,
+}: {
+  task: FarmCalendarTask | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={Boolean(task)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl">
+        {task && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex flex-wrap items-center gap-3 text-gray-900" style={{ fontFamily: "Poppins" }}>
+                <Badge className={getPriorityBadgeClass(task.priority)}>{formatPriorityLabel(task.priority)}</Badge>
+                <span>{task.task_hindi || task.task}</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-4 w-4" />
+                  {formatDate(task.date)}
+                </span>
+                {task.suggested_time && (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="h-4 w-4" />
+                    {task.suggested_time}
+                  </span>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <h3 className="mb-2 flex items-center gap-2 font-semibold text-rose-900">
+                  <AlertTriangle className="h-4 w-4" />
+                  Why this task?
+                </h3>
+                <p className="text-sm leading-6 text-rose-900">{task.reason}</p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <h3 className="mb-2 flex items-center gap-2 font-semibold text-emerald-900">
+                  <Droplets className="h-4 w-4" />
+                  Recommended action
+                </h3>
+                <p className="text-sm leading-6 text-emerald-900">{task.recommendation}</p>
+              </div>
+
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={onClose}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
+}
+
+function StatChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white/80 px-4 py-3">
+      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function WeatherMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+      <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+async function getBrowserCoords(): Promise<BrowserCoords> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) =>
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+        }),
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 10 * 60 * 1000,
+      },
+    );
+  });
+}
+
+function parseTaskDate(value: string): Date {
+  return stripTime(new Date(`${value}T00:00:00`));
+}
+
+function stripTime(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function startOfMonth(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), 1);
+}
+
+function endOfMonth(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth() + 1, 0);
+}
+
+function addMonths(value: Date, amount: number): Date {
+  return new Date(value.getFullYear(), value.getMonth() + amount, 1);
+}
+
+function addDays(value: Date, amount: number): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate() + amount);
+}
+
+function isSameDay(left: Date, right: Date): boolean {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+function formatDate(value: string | Date): string {
+  const date = typeof value === "string" ? parseTaskDate(value) : value;
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatMonthYear(value: Date): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    month: "long",
+    year: "numeric",
+  }).format(value);
+}
+
+function priorityRank(priority: FarmCalendarTask["priority"] | FarmCalendarRecommendation["priority"]): number {
+  const order = {
+    critical: 0,
+    high: 1,
+    medium: 2,
+    info: 3,
+    optimal: 4,
+  };
+  return order[priority];
+}
+
+function formatPriorityLabel(priority: FarmCalendarTask["priority"] | FarmCalendarRecommendation["priority"]): string {
+  if (priority === "optimal") {
+    return "Optimal";
+  }
+  return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+function formatHealthStatus(status: FarmCalendarHealthMetric["status"]): string {
+  if (status === "good") {
+    return "Good";
+  }
+  if (status === "warning") {
+    return "Warning";
+  }
+  if (status === "critical") {
+    return "Critical";
+  }
+  return "Info";
+}
+
+function getPriorityBadgeClass(priority: FarmCalendarTask["priority"] | FarmCalendarRecommendation["priority"]): string {
+  switch (priority) {
+    case "critical":
+      return "bg-rose-600 text-white";
+    case "high":
+      return "bg-amber-400 text-amber-950";
+    case "medium":
+      return "bg-yellow-200 text-yellow-900";
+    case "optimal":
+      return "bg-emerald-600 text-white";
+    default:
+      return "bg-sky-200 text-sky-900";
+  }
+}
+
+function getPriorityDotClass(priority: FarmCalendarTask["priority"]): string {
+  switch (priority) {
+    case "critical":
+      return "bg-rose-500";
+    case "high":
+      return "bg-amber-500";
+    case "medium":
+      return "bg-yellow-400";
+    case "optimal":
+      return "bg-emerald-500";
+    default:
+      return "bg-sky-500";
+  }
+}
+
+function getPrioritySurfaceClass(priority: FarmCalendarTask["priority"]): string {
+  switch (priority) {
+    case "critical":
+      return "bg-rose-100 text-rose-900";
+    case "high":
+      return "bg-amber-100 text-amber-900";
+    case "medium":
+      return "bg-yellow-100 text-yellow-900";
+    case "optimal":
+      return "bg-emerald-100 text-emerald-900";
+    default:
+      return "bg-sky-100 text-sky-900";
+  }
+}
+
+function getHealthDotClass(status: FarmCalendarHealthMetric["status"]): string {
+  switch (status) {
+    case "critical":
+      return "bg-rose-500";
+    case "warning":
+      return "bg-amber-500";
+    case "good":
+      return "bg-emerald-500";
+    default:
+      return "bg-sky-500";
+  }
 }
