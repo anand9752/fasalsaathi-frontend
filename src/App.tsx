@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 // Public pages
 import { LandingPage } from "./pages/LandingPage";
@@ -13,6 +13,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 // App internals (existing)
 import { WeatherHeader } from "./components/navigation";
 import { OnboardingFlow } from "./components/onboarding";
+import { LoginPage } from "./components/LoginPage"; // <-- IMPORTED LOGIN PAGE
 import { CalendarPage } from "./components/calendar-page";
 import { MarketPage } from "./components/market-page";
 import { PlantAnalysisPage } from "./components/plant-analysis";
@@ -51,7 +52,9 @@ import {
   Target,
 } from "lucide-react";
 
+// Added "login" to the Page type
 type Page =
+  | "login"
   | "onboarding"
   | "dashboard"
   | "calendar"
@@ -92,22 +95,44 @@ export default function App() {
 // AuthenticatedApp — the existing entire app, now at /app
 // ─────────────────────────────────────────────────────────────────────────────
 function AuthenticatedApp() {
-  const [currentPage, setCurrentPage] = useState<Page>(() =>
-    localStorage.getItem("accessToken") ? "dashboard" : "onboarding"
-  );
+  const location = useLocation();
+
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    // If logged in, go straight to dashboard
+    if (localStorage.getItem("accessToken")) return "dashboard";
+    
+    // If not logged in, check the URL to see if they clicked Login or Register
+    const params = new URLSearchParams(location.search);
+    return params.get("mode") === "login" ? "login" : "onboarding";
+  });
+
+  // Watch for URL changes in case they use the navbar to switch between Login and Register
+  useEffect(() => {
+    if (!localStorage.getItem("accessToken")) {
+      const params = new URLSearchParams(location.search);
+      setCurrentPage(params.get("mode") === "login" ? "login" : "onboarding");
+    }
+  }, [location.search]);
+
   const [activeVariation, setActiveVariation] = useState(1);
   const [isChatOpen, setIsChatOpen] = useState(false);
-
-  const handleOnboardingComplete = () => {
-    setCurrentPage("dashboard");
-  };
 
   const handleNavigation = (page: Page) => {
     setCurrentPage(page);
   };
 
+  // Route to the correct unauthenticated screen
   if (currentPage === "onboarding") {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+    return <OnboardingFlow onComplete={() => handleNavigation("dashboard")} />;
+  }
+
+  if (currentPage === "login") {
+    return (
+      <LoginPage 
+        onLogin={() => handleNavigation("dashboard")} 
+        onNavigateToRegister={() => handleNavigation("onboarding")} 
+      />
+    );
   }
 
   return (
@@ -149,6 +174,7 @@ function AppContent({
     const token = localStorage.getItem("accessToken");
     if (!token) {
       setCurrentUser(null);
+      handleNavigation("login"); // Redirect to login if token is missing
       return;
     }
 
@@ -158,14 +184,14 @@ function AppContent({
       .catch(() => {
         localStorage.removeItem("accessToken");
         setCurrentUser(null);
-        handleNavigation("onboarding");
+        handleNavigation("login"); // Redirect to login on token failure
       });
   }, [currentPage, handleNavigation]);
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
     setCurrentUser(null);
-    handleNavigation("onboarding");
+    handleNavigation("login"); // Take them back to login when they log out
   };
 
   const variations = [
@@ -281,7 +307,7 @@ function AppContent({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Top navigation (unchanged from original)
+// Top navigation
 // ─────────────────────────────────────────────────────────────────────────────
 function TopNavigationWithRouter({
   currentPage,
@@ -391,6 +417,10 @@ function TopNavigationWithRouter({
                 <Target className="w-4 h-4 mr-2" />
                 {t("plant-analysis")}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onNavigate("yield-prediction")}>
+                <Target className="w-4 h-4 mr-2" />
+                {t("yield-prediction")}
+                </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

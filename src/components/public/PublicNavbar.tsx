@@ -1,26 +1,39 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Leaf, Menu, X, ChevronDown } from "lucide-react";
+import { Leaf, Menu, X, ChevronDown, Languages } from "lucide-react";
+import { useLanguage } from "../../hooks/useLanguage"; // Adjust import path as needed
 
-const navLinks = [
-  { label: "Features", href: "/features" },
-  { label: "Pricing", href: "/pricing" },
-  { label: "Guidelines", href: "/guidelines" },
-  { label: "Contact", href: "/contact" },
-];
-
-const moreLinks = [
-  { label: "Terms & Conditions", href: "/terms" },
-  { label: "Privacy Policy", href: "/privacy" },
-];
+// ─── Navbar Translations ───
+const navT = {
+  en: { features: "Features", pricing: "Pricing", guidelines: "Guidelines", contact: "Contact", more: "More", terms: "Terms", privacy: "Privacy", signIn: "Sign In", getStarted: "Get Started Free" },
+  hi: { features: "सुविधाएं", pricing: "मूल्य निर्धारण", guidelines: "दिशानिर्देश", contact: "संपर्क", more: "अधिक", terms: "शर्तें", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मुफ्त शुरू करें" },
+  mr: { features: "वैशिष्ट्ये", pricing: "किंमत", guidelines: "मार्गदर्शक तत्त्वे", contact: "संपर्क", more: "अधिक", terms: "अटी", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मोफत सुरू करा" },
+  pa: { features: "ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ", pricing: "ਕੀਮਤ", guidelines: "ਦਿਸ਼ਾ-ਨਿਰਦੇਸ਼", contact: "ਸੰਪਰਕ", more: "ਹੋਰ", terms: "ਸ਼ਰਤਾਂ", privacy: "ਗੋਪਨੀਯਤਾ", signIn: "ਸਾਈਨ ਇਨ", getStarted: "ਮੁਫਤ ਸ਼ੁਰੂ ਕਰੋ" },
+};
 
 export function PublicNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  
   const location = useLocation();
   const navigate = useNavigate();
+  const { lang, changeLanguage } = useLanguage();
+  const t = navT[lang as keyof typeof navT] || navT.en; 
+
+  const navLinks = [
+    { label: t.features, href: "/features" },
+    { label: t.pricing, href: "/pricing" },
+    { label: t.guidelines, href: "/guidelines" },
+    { label: t.contact, href: "/contact" },
+  ];
+
+  const moreLinks = [
+    { label: t.terms, href: "/terms" },
+    { label: t.privacy, href: "/privacy" },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -28,96 +41,101 @@ export function PublicNavbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => {
     setMobileOpen(false);
     setMoreOpen(false);
+    setLangOpen(false);
   }, [location.pathname]);
 
   const isActive = (href: string) => location.pathname === href;
 
   return (
     <>
-      <motion.header
-        initial={{ y: -64, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? "bg-white/90 backdrop-blur-md shadow-md border-b border-green-100"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 group">
-              <motion.div
-                whileHover={{ rotate: 15 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center shadow-md"
-              >
-                <Leaf className="w-5 h-5 text-white" />
+      <style>{`
+        .fs-nav-wrapper { --nav-font: 'Poppins', system-ui, sans-serif; --nav-primary: #16a34a; --nav-primary-dark: #15803d; }
+        .fs-header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; transition: all 0.3s ease; font-family: var(--nav-font); --hd-text: rgba(255, 255, 255, 0.85); --hd-text-hover: #ffffff; --hd-logo-bg: rgba(255, 255, 255, 0.15); --hd-logo-text: #ffffff; --hd-indicator: #ffffff; --hd-btn-out-border: rgba(255, 255, 255, 0.3); --hd-btn-out-text: #ffffff; --hd-btn-out-hover-bg: rgba(255, 255, 255, 0.1); --hd-btn-solid-bg: #ffffff; --hd-btn-solid-text: #064e3b; --hd-btn-solid-hover: #f1f5f9; --hd-hamburger: #ffffff; }
+        .fs-header.scrolled { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); --hd-text: #4b5563; --hd-text-hover: var(--nav-primary); --hd-logo-bg: var(--nav-primary); --hd-logo-text: var(--nav-primary); --hd-indicator: var(--nav-primary); --hd-btn-out-border: #e2e8f0; --hd-btn-out-text: var(--nav-primary); --hd-btn-out-hover-bg: #f0fdf4; --hd-btn-solid-bg: var(--nav-primary); --hd-btn-solid-text: #ffffff; --hd-btn-solid-hover: var(--nav-primary-dark); --hd-hamburger: #4b5563; }
+        .fs-container { max-width: 80rem; margin: 0 auto; padding: 0 1rem; display: flex; align-items: center; justify-content: space-between; height: 5rem; }
+        @media (min-width: 640px) { .fs-container { padding: 0 1.5rem; } }
+        @media (min-width: 1024px) { .fs-container { padding: 0 2rem; } }
+        .fs-logo { display: flex; align-items: center; gap: 0.625rem; text-decoration: none; outline: none; }
+        .fs-logo-icon { width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; background-color: var(--hd-logo-bg); transition: background-color 0.3s ease; display: flex; align-items: center; justify-content: center; }
+        .fs-logo-text { font-size: 1.5rem; font-weight: 700; color: var(--hd-logo-text); transition: color 0.3s ease; letter-spacing: -0.025em; }
+        
+        .fs-desktop-nav { display: none; align-items: center; gap: 0.5rem; }
+        @media (min-width: 768px) { .fs-desktop-nav { display: flex; } }
+        .fs-nav-link { position: relative; padding: 0.5rem 1rem; font-size: 0.9375rem; font-weight: 500; border-radius: 0.5rem; color: var(--hd-text); text-decoration: none; transition: color 0.3s ease, background-color 0.3s ease; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.25rem; }
+        .fs-nav-link:hover, .fs-nav-link.active { color: var(--hd-text-hover); }
+        .fs-header.scrolled .fs-nav-link:hover { background-color: var(--hd-btn-out-hover-bg); }
+        .fs-indicator { position: absolute; bottom: 0.125rem; left: 50%; transform: translateX(-50%); width: 0.375rem; height: 0.375rem; border-radius: 50%; background-color: var(--hd-indicator); transition: background-color 0.3s ease; }
+        
+        .fs-dropdown-wrapper { position: relative; }
+        .fs-dropdown-menu { position: absolute; top: 100%; right: 0; margin-top: 0.5rem; width: 13rem; background-color: #ffffff; border-radius: 1rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; padding: 0.5rem; z-index: 50; }
+        .fs-dropdown-menu.fs-lang-menu { width: 10rem; right: auto; left: 50%; transform: translateX(-50%); }
+        .fs-dropdown-item { display: block; width: 100%; text-align: left; padding: 0.625rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; color: #4b5563; border: none; background: transparent; cursor: pointer; text-decoration: none; transition: all 0.2s ease; font-family: inherit; }
+        .fs-dropdown-item:hover, .fs-dropdown-item.active { color: var(--nav-primary); background-color: #f0fdf4; font-weight: 600; }
+        
+        .fs-actions { display: none; align-items: center; gap: 0.75rem; }
+        @media (min-width: 768px) { .fs-actions { display: flex; } }
+        
+        .fs-btn-outline { padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600; color: var(--hd-btn-out-text); background: transparent; border: 1px solid var(--hd-btn-out-border); border-radius: 0.75rem; cursor: pointer; transition: all 0.3s ease; }
+        .fs-btn-outline:hover { background-color: var(--hd-btn-out-hover-bg); }
+        .fs-btn-solid { padding: 0.625rem 1.5rem; font-size: 0.875rem; font-weight: 600; color: var(--hd-btn-solid-text); background-color: var(--hd-btn-solid-bg); border: none; border-radius: 0.75rem; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .fs-btn-solid:hover { background-color: var(--hd-btn-solid-hover); transform: translateY(-1px); }
+        
+        /* Mobile specific header actions */
+        .fs-mobile-header-actions { display: flex; align-items: center; gap: 0.5rem; }
+        @media (min-width: 768px) { .fs-mobile-header-actions { display: none; } }
+        
+        .fs-mobile-signin-btn { padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 0.5rem; border-width: 1px; }
+        
+        .fs-mobile-toggle { padding: 0.5rem; border-radius: 0.5rem; color: var(--hd-hamburger); background: transparent; border: none; cursor: pointer; transition: color 0.3s ease, background-color 0.3s ease; }
+        .fs-header.scrolled .fs-mobile-toggle:hover { background-color: #f1f5f9; color: var(--nav-primary); }
+        
+        .fs-mobile-drawer { position: fixed; top: 5rem; left: 0; right: 0; z-index: 40; background-color: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        .fs-mobile-content { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .fs-mobile-link { display: block; padding: 0.875rem 1rem; border-radius: 0.75rem; font-size: 1rem; font-weight: 500; color: #1f2937; text-decoration: none; transition: all 0.2s ease; }
+        .fs-mobile-link:hover, .fs-mobile-link.active { color: var(--nav-primary); background-color: #f0fdf4; }
+        .fs-mobile-actions { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
+        .fs-mobile-actions button { width: 100%; padding: 0.875rem; font-size: 1rem; font-weight: 600; border-radius: 0.75rem; cursor: pointer; border: none; }
+        .fs-mobile-btn-outline { background: transparent; border: 1px solid #e2e8f0 !important; color: var(--nav-primary); }
+        .fs-mobile-btn-outline:hover { background: #f8fafc; }
+        .fs-mobile-btn-solid { background: var(--nav-primary); color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .fs-backdrop { position: fixed; inset: 0; z-index: 30; }
+
+        .fs-mobile-lang-row { display: flex; gap: 0.5rem; padding: 0.5rem 1rem; margin-bottom: 0.5rem; background: #f9fafb; border-radius: 0.75rem; justify-content: space-between;}
+        .fs-mobile-lang-btn { padding: 0.5rem; border-radius: 0.5rem; border: none; background: transparent; color: #6b7280; font-weight: 600; font-family: inherit; font-size: 0.875rem; cursor: pointer;}
+        .fs-mobile-lang-btn.active { background: var(--nav-primary); color: white; }
+      `}</style>
+
+      <div className="fs-nav-wrapper">
+        <header className={`fs-header ${scrolled ? "scrolled" : ""}`}>
+          <div className="fs-container">
+            
+            <Link to="/" className="fs-logo">
+              <motion.div whileHover={{ rotate: 15 }} transition={{ type: "spring", stiffness: 300 }} className="fs-logo-icon">
+                <Leaf color="#ffffff" size={20} />
               </motion.div>
-              <span
-                className="text-xl font-bold text-green-700"
-                style={{ fontFamily: "Poppins" }}
-              >
-                FasalSaathi
-              </span>
+              <span className="fs-logo-text">FasalSaathi</span>
             </Link>
 
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="fs-desktop-nav">
               {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                    isActive(link.href)
-                      ? "text-green-700 bg-green-50"
-                      : "text-gray-600 hover:text-green-700 hover:bg-green-50"
-                  }`}
-                >
+                <Link key={link.href} to={link.href} className={`fs-nav-link ${isActive(link.href) ? "active" : ""}`}>
                   {link.label}
-                  {isActive(link.href) && (
-                    <motion.div
-                      layoutId="nav-indicator"
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-green-600"
-                    />
-                  )}
+                  {isActive(link.href) && <motion.div layoutId="nav-indicator" className="fs-indicator" />}
                 </Link>
               ))}
 
-              {/* More dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setMoreOpen(!moreOpen)}
-                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-gray-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors duration-200"
-                >
-                  More
-                  <motion.span animate={{ rotate: moreOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                    <ChevronDown className="w-4 h-4" />
-                  </motion.span>
+              <div className="fs-dropdown-wrapper">
+                <button onClick={() => setMoreOpen(!moreOpen)} className="fs-nav-link">
+                  {t.more} <ChevronDown size={16} style={{ opacity: 0.8 }} />
                 </button>
                 <AnimatePresence>
                   {moreOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-50"
-                    >
+                    <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }} className="fs-dropdown-menu">
                       {moreLinks.map((link) => (
-                        <Link
-                          key={link.href}
-                          to={link.href}
-                          onClick={() => setMoreOpen(false)}
-                          className="block px-4 py-2.5 text-sm text-gray-600 hover:text-green-700 hover:bg-green-50 transition-colors"
-                        >
-                          {link.label}
-                        </Link>
+                        <Link key={link.href} to={link.href} onClick={() => setMoreOpen(false)} className="fs-dropdown-item">{link.label}</Link>
                       ))}
                     </motion.div>
                   )}
@@ -125,99 +143,74 @@ export function PublicNavbar() {
               </div>
             </nav>
 
-            {/* CTA Buttons */}
-            <div className="hidden md:flex items-center gap-3">
-              <button
-                onClick={() => navigate("/app")}
-                className="px-4 py-2 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors duration-200"
-              >
-                Sign In
-              </button>
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => navigate("/app")}
-                className="px-5 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-md hover:shadow-green-200 transition-all duration-200"
-              >
-                Get Started Free
-              </motion.button>
-            </div>
-
-            {/* Mobile Hamburger */}
-            <button
-              className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-green-50 transition-colors"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle menu"
-            >
-              <AnimatePresence mode="wait" initial={false}>
-                {mobileOpen ? (
-                  <motion.span key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <X className="w-6 h-6" />
-                  </motion.span>
-                ) : (
-                  <motion.span key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Menu className="w-6 h-6" />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          </div>
-        </div>
-      </motion.header>
-
-      {/* Mobile Drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="fixed top-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-green-100 shadow-xl overflow-hidden"
-          >
-            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
-              {[...navLinks, ...moreLinks].map((link, i) => (
-                <motion.div
-                  key={link.href}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link
-                    to={link.href}
-                    className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      isActive(link.href)
-                        ? "text-green-700 bg-green-50"
-                        : "text-gray-700 hover:text-green-700 hover:bg-green-50"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                </motion.div>
-              ))}
-              <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
-                <button
-                  onClick={() => navigate("/app")}
-                  className="flex-1 py-2.5 text-sm font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
-                >
-                  Sign In
+            <div className="fs-actions">
+              <div className="fs-dropdown-wrapper">
+                <button onClick={() => setLangOpen(!langOpen)} className="fs-nav-link" style={{ padding: '0.5rem' }}>
+                  <Languages size={20} />
+                  <span style={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700 }}>{lang}</span>
                 </button>
-                <button
-                  onClick={() => navigate("/app")}
-                  className="flex-1 py-2.5 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Get Started
-                </button>
+                <AnimatePresence>
+                  {langOpen && (
+                    <motion.div initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.95 }} transition={{ duration: 0.15 }} className="fs-dropdown-menu fs-lang-menu">
+                      <button onClick={() => { changeLanguage("en"); setLangOpen(false); }} className={`fs-dropdown-item ${lang === "en" ? "active" : ""}`}>English</button>
+                      <button onClick={() => { changeLanguage("hi"); setLangOpen(false); }} className={`fs-dropdown-item ${lang === "hi" ? "active" : ""}`}>हिंदी (Hindi)</button>
+                      <button onClick={() => { changeLanguage("mr"); setLangOpen(false); }} className={`fs-dropdown-item ${lang === "mr" ? "active" : ""}`}>मराठी (Marathi)</button>
+                      <button onClick={() => { changeLanguage("pa"); setLangOpen(false); }} className={`fs-dropdown-item ${lang === "pa" ? "active" : ""}`}>ਪੰਜਾਬੀ (Punjabi)</button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Click outside to close more dropdown */}
-      {moreOpen && (
-        <div className="fixed inset-0 z-30" onClick={() => setMoreOpen(false)} />
-      )}
+              <button onClick={() => navigate("/app?mode=login")} className="fs-btn-outline">{t.signIn}</button>
+              <button onClick={() => navigate("/app?mode=register")} className="fs-btn-solid">{t.getStarted}</button>
+            </div>
+
+            {/* Mobile Actions: Sign In Button + Hamburger Toggle */}
+            <div className="fs-mobile-header-actions">
+              <button onClick={() => navigate("/app?mode=login")} className="fs-btn-outline fs-mobile-signin-btn">
+                {t.signIn}
+              </button>
+              <button className="fs-mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)}>
+                {mobileOpen ? <X size={28} /> : <Menu size={28} />}
+              </button>
+            </div>
+
+          </div>
+        </header>
+
+        {/* Mobile Drawer */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="fs-mobile-drawer">
+              <div className="fs-mobile-content">
+                
+                <div className="fs-mobile-lang-row">
+                  <button onClick={() => changeLanguage("en")} className={`fs-mobile-lang-btn ${lang === "en" ? "active" : ""}`}>EN</button>
+                  <button onClick={() => changeLanguage("hi")} className={`fs-mobile-lang-btn ${lang === "hi" ? "active" : ""}`}>हिंदी</button>
+                  <button onClick={() => changeLanguage("mr")} className={`fs-mobile-lang-btn ${lang === "mr" ? "active" : ""}`}>मराठी</button>
+                  <button onClick={() => changeLanguage("pa")} className={`fs-mobile-lang-btn ${lang === "pa" ? "active" : ""}`}>ਪੰਜਾਬੀ</button>
+                </div>
+
+                {[...navLinks, ...moreLinks].map((link, i) => (
+                  <motion.div key={link.href} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                    <Link to={link.href} className={`fs-mobile-link ${isActive(link.href) ? "active" : ""}`} onClick={() => setMobileOpen(false)}>
+                      {link.label}
+                    </Link>
+                  </motion.div>
+                ))}
+                
+                <div className="fs-mobile-actions">
+                  <button onClick={() => navigate("/app?mode=login")} className="fs-mobile-btn-outline">{t.signIn}</button>
+                  <button onClick={() => navigate("/app?mode=register")} className="fs-mobile-btn-solid">{t.getStarted}</button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Click outside overlays */}
+        {(moreOpen || langOpen) && <div className="fs-backdrop" onClick={() => { setMoreOpen(false); setLangOpen(false); }} />}
+      </div>
     </>
   );
 }
