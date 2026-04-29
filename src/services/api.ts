@@ -262,7 +262,16 @@ export const marketApi = {
             .catch((error: AxiosError<ApiError>) => {
                 console.error('Error fetching market trends:', error.response?.data?.detail);
                 throw error;
-            })
+            }),
+    
+    createAlert: (alertData: { commodity: string, target_price: number, condition: string }) =>
+        apiClient.post('/market/alerts', alertData).then(response => response.data),
+    
+    getAlerts: () =>
+        apiClient.get('/market/alerts').then(response => response.data),
+
+    deleteAlert: (alertId: number) =>
+        apiClient.delete(`/market/alerts/${alertId}`).then(response => response.data)
 };
 
 export const dashboardApi = {
