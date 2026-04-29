@@ -83,8 +83,23 @@ apiClient.interceptors.response.use(
         }
 
         // Handle other errors
-        const errorMessage = error.response?.data?.detail || error.message;
+        let errorMessage = error.response?.data?.detail || error.message;
+        
+        // Handle FastAPI validation errors (422) which return detail as an array
+        if (Array.isArray(error.response?.data?.detail)) {
+            errorMessage = error.response.data.detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else if (typeof errorMessage === 'object' && errorMessage !== null) {
+            errorMessage = JSON.stringify(errorMessage);
+        }
+
         console.error('API Error:', errorMessage);
+        
+        // Normalize both the message and the detail field to prevent React rendering issues
+        error.message = errorMessage;
+        if (error.response?.data) {
+            error.response.data.detail = errorMessage;
+        }
+        
         return Promise.reject(error);
     }
 );
