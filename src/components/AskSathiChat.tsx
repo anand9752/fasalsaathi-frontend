@@ -25,6 +25,7 @@ import {
 import { useLanguage } from "./language-context";
 import { askSathiApi } from "../services/api";
 import { Badge } from "./ui/badge";
+import { AxiosError } from "axios";
 
 interface Message {
   id: string;
@@ -39,11 +40,12 @@ interface AskSathiChatProps {
 }
 
 export function AskSathiChat({ isOpen, onClose }: AskSathiChatProps) {
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Initial greeting
@@ -63,12 +65,7 @@ export function AskSathiChat({ isOpen, onClose }: AskSathiChatProps) {
   }, [language, messages.length]);
 
   const scrollToBottom = () => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -111,11 +108,12 @@ export function AskSathiChat({ isOpen, onClose }: AskSathiChatProps) {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error("Ask Sathi Error:", error);
+      const backendMessage = (error as AxiosError<{ detail?: string }>).response?.data?.detail;
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: language === 'hi' 
-          ? "क्षमा करें, मुझे जवाब देने में परेशानी हो रही है। कृपया पुनः प्रयास करें।" 
-          : "Sorry, I'm having trouble responding. Please try again.",
+        text: backendMessage || (language === 'hi'
+          ? "क्षमा करें, मुझे जवाब देने में परेशानी हो रही है। कृपया पुनः प्रयास करें।"
+          : "Sorry, I'm having trouble responding. Please try again."),
         isBot: true,
         timestamp: new Date()
       };
@@ -160,7 +158,7 @@ export function AskSathiChat({ isOpen, onClose }: AskSathiChatProps) {
         </SheetHeader>
 
         <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 bg-slate-50/30">
-          <div className="space-y-4 pb-4">
+          <div className="space-y-4 pb-4 min-h-full flex flex-col">
             <AnimatePresence initial={false}>
               {messages.map((message) => (
                 <motion.div
@@ -221,6 +219,7 @@ export function AskSathiChat({ isOpen, onClose }: AskSathiChatProps) {
                 </div>
               </motion.div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 

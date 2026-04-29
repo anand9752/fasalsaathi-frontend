@@ -376,7 +376,7 @@ export function LandingPage() {
         .fs-lp-l-3 { left: 65%; width: 18px; height: 18px; animation-duration: 14s; animation-delay: 1s; background: linear-gradient(135deg, #facc15, #ca8a04); }
         .fs-lp-l-4 { left: 85%; width: 12px; height: 12px; animation-duration: 18s; animation-delay: 5s; }
 
-        .fs-lp-noise { position: absolute; inset: 0; z-index: 3; background-image: url('https://grainy-gradients.vercel.app/noise.svg'); opacity: 0.15; mix-blend-mode: overlay; pointer-events: none; }
+        .fs-lp-noise { position: absolute; inset: 0; z-index: 3; background-image: url('/noise.svg'); opacity: 0.15; mix-blend-mode: overlay; pointer-events: none; }
 
         .fs-lp-hero-grid { display: grid; grid-template-columns: 1fr; gap: 4rem; align-items: center; }
         @media (min-width: 1024px) { .fs-lp-hero-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } }

@@ -154,7 +154,7 @@ export function LoginPage({ onLogin, onNavigateToRegister }: LoginPageProps) {
         @keyframes leafFall { 0% { transform: translate(0, -50px) rotate(0deg); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(-150px, 100vh) rotate(720deg); opacity: 0; } }
         .fs-onb-bg-leaf { position: absolute; top: -10%; background: linear-gradient(135deg, #4ade80, #16a34a); border-radius: 50% 0 50% 0; opacity: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); animation: leafFall linear infinite; }
         
-        .fs-onb-noise { position: absolute; inset: 0; z-index: 3; background-image: url('https://grainy-gradients.vercel.app/noise.svg'); opacity: 0.15; mix-blend-mode: overlay; pointer-events: none; }
+        .fs-onb-noise { position: absolute; inset: 0; z-index: 3; background-image: url('/noise.svg'); opacity: 0.15; mix-blend-mode: overlay; pointer-events: none; }
 
         /* Modern input styling */
         .fs-onb-input { 
