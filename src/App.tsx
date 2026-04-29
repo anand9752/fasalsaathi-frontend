@@ -9,6 +9,7 @@ import { ContactPage } from "./pages/ContactPage";
 import { GuidelinesPage } from "./pages/GuidelinesPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { SupportPage } from "./pages/SupportPage";
 
 // App internals (existing)
 import { ProfilePage } from "./components/profile-page";
@@ -91,8 +92,9 @@ export default function App() {
         <Route path="/guidelines" element={<GuidelinesPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/breed-analysis" element={<BreedAnalysisPage />} />
-     
+
         {/* Authenticated app — lives at /app */}
         <Route path="/app" element={<AuthenticatedApp />} />
         <Route path="/app/*" element={<AuthenticatedApp />} />

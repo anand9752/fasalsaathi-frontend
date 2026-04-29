@@ -6,10 +6,10 @@ import { useLanguage } from "../../hooks/useLanguage"; // Adjust import path as 
 
 // ─── Navbar Translations ───
 const navT = {
-  en: { features: "Features", pricing: "Pricing", guidelines: "Guidelines", breedAnalysis: "Breed Analysis", yieldPrediction: "Yield Prediction", contact: "Contact", more: "More", terms: "Terms", privacy: "Privacy", signIn: "Sign In", getStarted: "Get Started Free" },
-  hi: { features: "सुविधाएं", pricing: "मूल्य निर्धारण", guidelines: "दिशानिर्देश", breedAnalysis: "नस्ल की पहचान", yieldPrediction: "उत्पादन का अनुमान", contact: "संपर्क", more: "अधिक", terms: "शर्तें", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मुफ्त शुरू करें" },
-  mr: { features: "वैशिष्ट्ये", pricing: "किमत", guidelines: "मार्गदर्शक तत्त्वे", breedAnalysis: "जातीची ओळख", yieldPrediction: "उत्पादन अंदाज", contact: "संपर्क", more: "अधिक", terms: "अटी", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मोफत सुरू करा" },
-  pa: { features: "ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ", pricing: "ਕੀਮਤ", guidelines: "ਦਿਸ਼ਾ-ਨਿਰਦੇਸ਼", breedAnalysis: "ਨਸਲ ਦੀ ਪਛਾਣ", yieldPrediction: "ਪੈਦਾਵਾਰ ਪੂਰਵ ਅਨੁਮਾਨ", contact: "ਸੰਪਰਕ", more: "ਹੋਰ", terms: "ਸ਼ਰਤਾਂ", privacy: "ਗੋਪਨੀਯਤਾ", signIn: "ਸਾਈਨ ਇਨ", getStarted: "ਮੁਫਤ ਸ਼ੁਰੂ ਕਰੋ" },
+  en: { features: "Features", pricing: "Pricing", guidelines: "Guidelines", support: "Support", breedAnalysis: "Breed Analysis", yieldPrediction: "Yield Prediction", contact: "Contact", more: "More", terms: "Terms", privacy: "Privacy", signIn: "Sign In", getStarted: "Get Started Free" },
+  hi: { features: "सुविधाएं", pricing: "मूल्य निर्धारण", guidelines: "दिशानिर्देश", support: "सहायता", breedAnalysis: "नस्ल की पहचान", yieldPrediction: "उत्पादन का अनुमान", contact: "संपर्क", more: "अधिक", terms: "शर्तें", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मुफ्त शुरू करें" },
+  mr: { features: "वैशिष्ट्ये", pricing: "किंमत", guidelines: "मार्गदर्शक तत्त्वे", support: "मदत", breedAnalysis: "जातीची ओळख", yieldPrediction: "उत्पादन अंदाज", contact: "संपर्क", more: "अधिक", terms: "अटी", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मोफत सुरू करा" },
+  pa: { features: "ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ", pricing: "ਕੀਮਤ", guidelines: "ਦਿਸ਼ਾ-ਨਿਰਦੇਸ਼", support: "ਸਹਾਇਤਾ", breedAnalysis: "ਨਸਲ ਦੀ ਪਛਾਣ", yieldPrediction: "ਪੈਦਾਵਾਰ ਪੂਰਵ ਅਨੁਮਾਨ", contact: "ਸੰਪਰਕ", more: "ਹੋਰ", terms: "ਸ਼ਰਤਾਂ", privacy: "ਗੋਪਨੀਯਤਾ", signIn: "ਸਾਈਨ ਇਨ", getStarted: "ਮੁਫਤ ਸ਼ੁਰੂ ਕਰੋ" },
 };
 
 export function PublicNavbar() {
@@ -21,12 +21,15 @@ export function PublicNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { lang, changeLanguage } = useLanguage();
+  // Safe fallback to 'en'
   const t = navT[lang as keyof typeof navT] || navT.en; 
 
   const navLinks = [
     { label: t.features, href: "/features" },
     { label: t.pricing, href: "/pricing" },
     { label: t.guidelines, href: "/guidelines" },
+    { label: t.support, href: "/support" },
+    { label: t.breedAnalysis, href: "/breed-analysis" },
     { label: t.contact, href: "/contact" },
   ];
 
@@ -62,9 +65,9 @@ export function PublicNavbar() {
         .fs-logo-icon { width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; background-color: var(--hd-logo-bg); transition: background-color 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .fs-logo-text { font-size: 1.5rem; font-weight: 700; color: var(--hd-logo-text); transition: color 0.3s ease; letter-spacing: -0.025em; }
         
-        .fs-desktop-nav { display: none; align-items: center; gap: 0.5rem; }
+        .fs-desktop-nav { display: none; align-items: center; gap: 0.25rem; }
         @media (min-width: 768px) { .fs-desktop-nav { display: flex; } }
-        .fs-nav-link { position: relative; padding: 0.5rem 1rem; font-size: 0.9375rem; font-weight: 500; border-radius: 0.5rem; color: var(--hd-text); text-decoration: none; transition: color 0.3s ease, background-color 0.3s ease; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.25rem; }
+        .fs-nav-link { position: relative; padding: 0.5rem 0.8rem; font-size: 0.9375rem; font-weight: 500; border-radius: 0.5rem; color: var(--hd-text); text-decoration: none; transition: color 0.3s ease, background-color 0.3s ease; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.25rem; }
         .fs-nav-link:hover, .fs-nav-link.active { color: var(--hd-text-hover); }
         .fs-header.scrolled .fs-nav-link:hover { background-color: var(--hd-btn-out-hover-bg); }
         .fs-indicator { position: absolute; bottom: 0.125rem; left: 50%; transform: translateX(-50%); width: 0.375rem; height: 0.375rem; border-radius: 50%; background-color: var(--hd-indicator); transition: background-color 0.3s ease; }
@@ -76,7 +79,7 @@ export function PublicNavbar() {
         .fs-dropdown-item:hover, .fs-dropdown-item.active { color: var(--nav-primary); background-color: #f0fdf4; font-weight: 600; }
         
         .fs-actions { display: none; align-items: center; gap: 0.75rem; }
-        @media (min-width: 768px) { .fs-actions { display: flex; } }
+        @media (min-width: 1024px) { .fs-actions { display: flex; } }
         
         .fs-btn-outline { padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600; color: var(--hd-btn-out-text); background: transparent; border: 1px solid var(--hd-btn-out-border); border-radius: 0.75rem; cursor: pointer; transition: all 0.3s ease; }
         .fs-btn-outline:hover { background-color: var(--hd-btn-out-hover-bg); }
@@ -85,7 +88,7 @@ export function PublicNavbar() {
         
         /* Mobile specific header actions */
         .fs-mobile-header-actions { display: flex; align-items: center; gap: 0.5rem; }
-        @media (min-width: 768px) { .fs-mobile-header-actions { display: none; } }
+        @media (min-width: 1024px) { .fs-mobile-header-actions { display: none; } }
         
         .fs-mobile-signin-btn { padding: 0.4rem 0.75rem; font-size: 0.75rem; border-radius: 0.5rem; border-width: 1px; }
         
@@ -93,7 +96,7 @@ export function PublicNavbar() {
         .fs-header.scrolled .fs-mobile-toggle:hover { background-color: #f1f5f9; color: var(--nav-primary); }
         
         .fs-mobile-drawer { position: fixed; top: 5rem; left: 0; right: 0; z-index: 40; background-color: rgba(255, 255, 255, 0.98); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; }
-        .fs-mobile-content { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+        .fs-mobile-content { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; max-height: calc(100vh - 5rem); overflow-y: auto; }
         .fs-mobile-link { display: block; padding: 0.875rem 1rem; border-radius: 0.75rem; font-size: 1rem; font-weight: 500; color: #1f2937; text-decoration: none; transition: all 0.2s ease; }
         .fs-mobile-link:hover, .fs-mobile-link.active { color: var(--nav-primary); background-color: #f0fdf4; }
         .fs-mobile-actions { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
