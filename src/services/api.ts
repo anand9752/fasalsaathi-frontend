@@ -83,8 +83,23 @@ apiClient.interceptors.response.use(
         }
 
         // Handle other errors
-        const errorMessage = error.response?.data?.detail || error.message;
+        let errorMessage = error.response?.data?.detail || error.message;
+        
+        // Handle FastAPI validation errors (422) which return detail as an array
+        if (Array.isArray(error.response?.data?.detail)) {
+            errorMessage = error.response.data.detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else if (typeof errorMessage === 'object' && errorMessage !== null) {
+            errorMessage = JSON.stringify(errorMessage);
+        }
+
         console.error('API Error:', errorMessage);
+        
+        // Normalize both the message and the detail field to prevent React rendering issues
+        error.message = errorMessage;
+        if (error.response?.data) {
+            error.response.data.detail = errorMessage;
+        }
+        
         return Promise.reject(error);
     }
 );
@@ -272,6 +287,25 @@ export const inventoryApi = {
         apiClient.delete(`/inventory/${id}`).then(r => r.data),
 };
 
+import { Notification, NotificationUpdate } from '../types/notification';
+
+export const notificationApi = {
+    getNotifications: () => 
+        apiClient.get<Notification[]>('/notifications').then(response => response.data),
+    
+    markAsRead: (id: number, data: NotificationUpdate) => 
+        apiClient.patch<Notification>(`/notifications/${id}/read`, data).then(response => response.data),
+        
+    deleteNotification: (id: number) => 
+        apiClient.delete(`/notifications/${id}`).then(response => response.data),
+};
+
+export const askSathiApi = {
+    ask: (query: string, history: { role: string; content: string }[] = []) =>
+        apiClient.post<{ type: string; response: string; language: string }>('/ask-sathi/ask-sathi', { query, history })
+            .then(response => response.data),
+};
+
 export default {
     auth: authApi,
     farms: farmApi,
@@ -282,4 +316,6 @@ export default {
     market: marketApi,
     dashboard: dashboardApi,
     inventory: inventoryApi,
+    notifications: notificationApi,
+    askSathi: askSathiApi,
 };
