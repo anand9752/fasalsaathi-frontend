@@ -9,6 +9,7 @@ import { ContactPage } from "./pages/ContactPage";
 import { GuidelinesPage } from "./pages/GuidelinesPage";
 import { TermsPage } from "./pages/TermsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { SupportPage } from "./pages/SupportPage";
 
 // App internals (existing)
 import { ProfilePage } from "./components/profile-page";
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/guidelines" element={<GuidelinesPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/support" element={<SupportPage />} />
 
         {/* Authenticated app — lives at /app */}
         <Route path="/app" element={<AuthenticatedApp />} />
@@ -310,7 +312,6 @@ function AppContent({
             currentUser={currentUser}
             onLogout={handleLogout}
           />
-          {isDashboard && <WeatherHeader />}
         </>
       )}
 
@@ -496,7 +497,6 @@ function TopNavigationWithRouter({
               <DropdownMenuItem className="fs-drop-item" onClick={() => onNavigate("profile")}>
                   <User className="w-4 h-4 mr-2 opacity-80" /> {t("profile")}
                 </DropdownMenuItem>
-              <DropdownMenuItem>{t("settings")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onLogout}>
                 {t("logout")}
               </DropdownMenuItem>

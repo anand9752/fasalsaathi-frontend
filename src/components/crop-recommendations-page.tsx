@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   ArrowRight, DollarSign, Droplets, Search, Sun, Target, TrendingUp, 
   Leaf, MapPin, TestTube, Thermometer, Loader2, AlertCircle, Sprout, Wind,
-  Bug
+  Bug, X, CheckCircle2 // <-- Added X and CheckCircle2
 } from "lucide-react";
 
 import { cropApi, farmApi, soilTestApi, weatherApi } from "../services/api";
 import { CropDetailResponse, CropRecommendation, Farm, SoilTest } from "../types/api";
 import { useLanguage, SpeakerButton } from "./language-context";
 import { Badge } from "./ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent } from "./ui/dialog";
 
 export function CropRecommendationsPage() {
   const { t } = useLanguage();
@@ -140,7 +140,7 @@ export function CropRecommendationsPage() {
         
         .fs-cr-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 0.5rem 1.25rem; border-radius: 999px; font-size: 0.875rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.3); margin-bottom: 1.5rem; box-shadow: var(--cr-shadow-sm); }
 
-        /* SOIL METRICS (Floating over Hero) */
+        /* SOIL METRICS */
         .fs-cr-soil-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-top: 2rem; position: relative; z-index: 10; }
         @media (min-width: 768px) { .fs-cr-soil-grid { grid-template-columns: repeat(6, 1fr); gap: 1rem; } }
         .fs-cr-soil-chip { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(8px); padding: 0.75rem 1rem; border-radius: 1rem; display: flex; flex-direction: column; }
@@ -175,11 +175,35 @@ export function CropRecommendationsPage() {
         .fs-cr-detail-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px solid var(--cr-border); }
         .fs-cr-detail-row:last-child { border-bottom: none; padding-bottom: 0; }
         
-        /* DIALOG STYLES (Custom overrides for beautiful modal) */
-        .fs-cr-dialog-header { background: var(--cr-primary-light); padding: 2rem; border-bottom: 1px solid rgba(16, 185, 129, 0.2); margin: -1.5rem -1.5rem 1.5rem -1.5rem; border-radius: 0.5rem 0.5rem 0 0; }
-        .fs-cr-dialog-title { font-family: 'Poppins'; font-size: 1.75rem; font-weight: 800; color: var(--cr-primary-dark); margin-bottom: 0.5rem; }
-        .fs-cr-section-title { font-family: 'Poppins'; font-size: 1.125rem; font-weight: 700; color: var(--cr-text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-        .fs-cr-list-item { background: var(--cr-bg); border: 1px solid var(--cr-border); border-radius: 0.75rem; padding: 0.75rem 1rem; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 500; color: var(--cr-text); }
+        /* DIALOG STYLES (NEW PREMIUM DESIGN) */
+        .fs-cr-dialog-header { 
+          background: linear-gradient(135deg, #064e3b 0%, var(--cr-primary) 100%);
+          padding: 2.5rem 2rem 2rem; 
+          color: white; 
+          position: relative;
+        }
+        .fs-cr-dialog-close {
+          position: absolute; top: 1.25rem; right: 1.25rem;
+          background: rgba(255,255,255,0.2); border-radius: 50%; padding: 0.5rem;
+          color: white; border: none; cursor: pointer; transition: background 0.2s;
+        }
+        .fs-cr-dialog-close:hover { background: rgba(255,255,255,0.3); }
+        .fs-cr-dialog-title { font-family: 'Poppins'; font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; line-height: 1.2; }
+        
+        /* DETAIL SECTION CARDS */
+        .fs-cr-section-card {
+          background: white; border-radius: 1.25rem; border: 1px solid var(--cr-border);
+          padding: 1.5rem; box-shadow: var(--cr-shadow-sm); transition: all 0.2s;
+        }
+        .fs-cr-section-card:hover { border-color: rgba(16, 185, 129, 0.3); box-shadow: var(--cr-shadow); }
+        .fs-cr-section-header {
+          display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;
+          padding-bottom: 1rem; border-bottom: 1px dashed var(--cr-border);
+        }
+        .fs-cr-section-icon {
+          width: 3.5rem; height: 3.5rem; border-radius: 1rem;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
       `}</style>
 
       <div className="fs-cr-wrapper">
@@ -400,24 +424,63 @@ export function CropRecommendationsPage() {
         </div>
       </div>
 
-      {/* ─── DETAIL MODAL (CRASH FIXED & BEAUTIFIED) ─── */}
+      {/* ─── DETAIL MODAL (PREMIUM REDESIGN) ─── */}
       <Dialog open={!!selectedDetail} onOpenChange={(open) => !open && setSelectedDetail(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 border-0 rounded-2xl shadow-2xl bg-white">
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 border-0 rounded-2xl shadow-2xl bg-[#f8fafc] overflow-hidden flex flex-col">
           {selectedDetail && (
             <>
-              <div className="fs-cr-dialog-header">
-                <Badge className="bg-emerald-600 text-white hover:bg-emerald-700 mb-3 shadow-sm border-0">{selectedDetail.crop_name}</Badge>
+              {/* Sticky Header */}
+              <div className="shrink-0 fs-cr-dialog-header">
+                <button onClick={() => setSelectedDetail(null)} className="fs-cr-dialog-close">
+                  <X size={20} />
+                </button>
+                <Badge className="bg-white/20 text-white hover:bg-white/30 mb-4 shadow-sm border border-white/30 backdrop-blur-sm">
+                  {selectedDetail.crop_name}
+                </Badge>
                 <h2 className="fs-cr-dialog-title">{selectedDetail.crop_name_hindi} Cultivation Guide</h2>
-                <p className="text-emerald-900/80 font-medium leading-relaxed">{selectedDetail.overview}</p>
+                <p className="text-emerald-50 text-base font-medium max-w-3xl leading-relaxed mt-2">
+                  {selectedDetail.overview}
+                </p>
               </div>
               
-              <div className="p-6 md:p-8 space-y-8 bg-white">
-                <DetailSection icon={<Target className="text-amber-600" />} title="Land Preparation" items={selectedDetail.land_preparation} />
-                <DetailSection icon={<Sprout className="text-emerald-600" />} title="Sowing Time & Method" items={selectedDetail.sowing_time} />
-                <DetailSection icon={<Droplets className="text-blue-600" />} title="Irrigation Schedule" items={selectedDetail.irrigation_schedule} />
-                <DetailSection icon={<Leaf className="text-green-600" />} title="Fertilizers & Nutrients" items={selectedDetail.fertilizers} />
-                <DetailSection icon={<Bug className="text-red-600" />} title="Pest & Disease Control" items={selectedDetail.pesticides} />
-                <DetailSection icon={<TrendingUp className="text-purple-600" />} title="Harvesting & Storage" items={selectedDetail.harvesting} />
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-6 md:p-8 flex flex-col gap-2">
+                <DetailSection 
+                  icon={<Target size={24} />} 
+                  title="Land Preparation" 
+                  items={selectedDetail.land_preparation} 
+                  colorClass="bg-amber-100 text-amber-700" 
+                />
+                <DetailSection 
+                  icon={<Sprout size={24} />} 
+                  title="Sowing Time & Method" 
+                  items={selectedDetail.sowing_time} 
+                  colorClass="bg-emerald-100 text-emerald-700" 
+                />
+                <DetailSection 
+                  icon={<Droplets size={24} />} 
+                  title="Irrigation Schedule" 
+                  items={selectedDetail.irrigation_schedule} 
+                  colorClass="bg-blue-100 text-blue-700" 
+                />
+                <DetailSection 
+                  icon={<Leaf size={24} />} 
+                  title="Fertilizers & Nutrients" 
+                  items={selectedDetail.fertilizers} 
+                  colorClass="bg-purple-100 text-purple-700" 
+                />
+                <DetailSection 
+                  icon={<Bug size={24} />} 
+                  title="Pest & Disease Control" 
+                  items={selectedDetail.pesticides} 
+                  colorClass="bg-rose-100 text-rose-700" 
+                />
+                <DetailSection 
+                  icon={<TrendingUp size={24} />} 
+                  title="Harvesting & Storage" 
+                  items={selectedDetail.harvesting} 
+                  colorClass="bg-teal-100 text-teal-700" 
+                />
               </div>
             </>
           )}
@@ -429,23 +492,22 @@ export function CropRecommendationsPage() {
 
 // ─── HELPER COMPONENTS ────────────────────────────────────────────────────────
 
-function DetailSection({ icon, title, items }: { icon: ReactNode, title: string; items: string[] | string }) {
-  // CRITICAL FIX: If the API returns a string instead of an array, convert it to an array safely.
+function DetailSection({ icon, title, items, colorClass }: { icon: ReactNode, title: string, items: string[] | string, colorClass: string }) {
+  // Safely format items to always be an array
   if (!items || (Array.isArray(items) && items.length === 0)) return null;
-  
   const safeItemsArray = Array.isArray(items) ? items : [items];
   
   return (
-    <div className="space-y-3">
-      <h3 className="fs-cr-section-title">
-        <span className="p-2 bg-gray-50 rounded-lg border border-gray-100 shadow-sm">{icon}</span>
-        {title}
-      </h3>
-      <ul className="space-y-2">
+    <div className="fs-cr-section-card">
+      <div className="fs-cr-section-header">
+        <div className={`fs-cr-section-icon ${colorClass}`}>{icon}</div>
+        <h3 className="text-xl font-bold text-gray-900" style={{ fontFamily: 'Poppins' }}>{title}</h3>
+      </div>
+      <ul className="space-y-3">
         {safeItemsArray.map((item, index) => (
-          <li key={`${title}-${index}`} className="fs-cr-list-item flex items-start gap-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-2"></span>
-            <span className="leading-relaxed">{item}</span>
+          <li key={`${title}-${index}`} className="flex items-start gap-3 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+            <span className="leading-relaxed font-medium text-sm text-gray-700">{item}</span>
           </li>
         ))}
       </ul>

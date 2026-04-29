@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   User, MapPin, CreditCard, Shield, Loader2, Save, ArrowLeft, 
   Camera, Plus, Sprout, CloudRain, CheckCircle2, Star, Droplets, 
-  LayoutDashboard, Pencil, Trash2, X, Moon, Sun, CalendarDays, Activity, Wheat, TestTube, Thermometer
+  LayoutDashboard, Pencil, Trash2, X, Moon, Sun, CalendarDays, 
+  Activity, Wheat, TestTube, Thermometer, Leaf, Target, 
+  ChevronDown, ChevronRight, ChevronLeft, TrendingUp, TrendingDown
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -12,8 +14,14 @@ import { useNavigate } from "react-router-dom";
 import { useLanguage, Language } from "../hooks/useLanguage";
 import { useCurrentUser, useFarms, useCreateFarm, useDeleteFarm, useDashboardOverview } from "../services/hooks";
 import { authApi, farmApi, soilTestApi } from "../services/api";
+import { FarmCropCycle } from "../types/api";
 
 type Tab = "details" | "farms" | "soil" | "subscription" | "preferences";
+
+const emptySoilForm = {
+  soil_ph: "", nitrogen: "", phosphorus: "",
+  potassium: "", soil_moisture: "", temperature: "",
+};
 
 // ─── TRANSLATION DICTIONARY ────────────────────────────────────────────────
 const t = {
@@ -32,7 +40,7 @@ const t = {
     f_empty_title: "No farms registered yet.", f_empty_desc: "Add your first farm to unlock yield predictions and insights.",
     f_acres: "Acres", f_irrigation: "Irrigation", f_soil_lbl: "Soil", f_tests: "Soil Tests", f_cycles: "Crop Cycles",
     f_confirm_del: "Are you sure you want to delete this farm? This action cannot be undone.",
-    st_title: "Soil Test Records", st_desc: "Log your latest soil test results to improve AI recommendations and track land health.",
+    st_title: "Soil Test Records", st_desc: "Log your latest NPK and soil test results to improve AI recommendations.",
     st_ph: "Soil pH", st_n: "Nitrogen (N)", st_p: "Phosphorus (P)", st_k: "Potassium (K)", st_moist: "Soil Moisture (%)", st_temp: "Temperature (°C)",
     st_save: "Save Soil Data", st_success: "Soil test saved successfully! Dashboard updated.", st_fail: "Failed to save soil test.", st_no_farm: "Please add a farm in 'Farm Management' first.",
     s_title: "Manage Subscription", s_desc: "Upgrade your plan to unlock premium AI capabilities and maximize yield.",
@@ -62,7 +70,7 @@ const t = {
     f_empty_title: "अभी तक कोई खेत पंजीकृत नहीं है।", f_empty_desc: "उपज की भविष्यवाणी अनलॉक करने के लिए अपना पहला खेत जोड़ें।",
     f_acres: "एकड़", f_irrigation: "सिंचाई", f_soil_lbl: "मिट्टी", f_tests: "मिट्टी परीक्षण", f_cycles: "फसल चक्र",
     f_confirm_del: "क्या आप निश्चित रूप से इस खेत को हटाना चाहते हैं?",
-    st_title: "मिट्टी परीक्षण रिकॉर्ड", st_desc: "AI सिफारिशों को बेहतर बनाने के लिए अपनी नवीनतम मिट्टी परीक्षण परिणाम दर्ज करें।",
+    st_title: "मिट्टी परीक्षण रिकॉर्ड", st_desc: "AI सिफारिशों को बेहतर बनाने के लिए अपनी नवीनतम NPK और मिट्टी परीक्षण परिणाम दर्ज करें।",
     st_ph: "मिट्टी का pH", st_n: "नाइट्रोजन (N)", st_p: "फास्फोरस (P)", st_k: "पोटेशियम (K)", st_moist: "नमी (%)", st_temp: "तापमान (°C)",
     st_save: "मिट्टी डेटा सहेजें", st_success: "मिट्टी परीक्षण सफलतापूर्वक सहेजा गया!", st_fail: "सहेजने में विफल।", st_no_farm: "कृपया पहले 'खेत प्रबंधन' में एक खेत जोड़ें।",
     s_title: "सदस्यता प्रबंधित करें", s_desc: "प्रीमियम एआई क्षमताओं को अनलॉक करने के लिए अपनी योजना को अपग्रेड करें।",
@@ -92,7 +100,7 @@ const t = {
     f_empty_title: "अद्याप कोणत्याही शेताची नोंदणी केलेली नाही.", f_empty_desc: "उत्पन्नाचा अंदाज अनलॉक करण्यासाठी तुमचे पहिले शेत जोडा.",
     f_acres: "एकर", f_irrigation: "सिंचन", f_soil_lbl: "माती", f_tests: "माती परीक्षण", f_cycles: "पीक चक्र",
     f_confirm_del: "तुम्हाला नक्की हे शेत काढायचे आहे का?",
-    st_title: "माती परीक्षण नोंदी", st_desc: "AI शिफारसी सुधारण्यासाठी तुमचे नवीनतम माती परीक्षण परिणाम नोंदवा.",
+    st_title: "माती परीक्षण नोंदी", st_desc: "AI शिफारसी सुधारण्यासाठी तुमचे नवीनतम NPK आणि माती परीक्षण परिणाम नोंदवा.",
     st_ph: "मातीचा pH", st_n: "नायट्रोजन (N)", st_p: "फॉस्फरस (P)", st_k: "पोटॅशियम (K)", st_moist: "मातीतील ओलावा (%)", st_temp: "तापमान (°C)",
     st_save: "माती डेटा सेव्ह करा", st_success: "माती परीक्षण यशस्वीरित्या सेव्ह केले!", st_fail: "सेव्ह करण्यात अयशस्वी.", st_no_farm: "कृपया प्रथम 'शेती व्यवस्थापन' मध्ये शेत जोडा.",
     s_title: "सबस्क्रिप्शन व्यवस्थापित करा", s_desc: "प्रीमियम AI क्षमता अनलॉक करण्यासाठी तुमचा प्लॅन अपग्रेड करा.",
@@ -122,7 +130,7 @@ const t = {
     f_empty_title: "ਹਾਲੇ ਤੱਕ ਕੋਈ ਖੇਤ ਰਜਿਸਟਰਡ ਨਹੀਂ ਹੈ।", f_empty_desc: "ਝਾੜ ਦੀਆਂ ਭਵਿੱਖਬਾਣੀਆਂ ਨੂੰ ਅਨਲੌਕ ਕਰਨ ਲਈ ਆਪਣਾ ਪਹਿਲਾ ਖੇਤ ਸ਼ਾਮਲ ਕਰੋ।",
     f_acres: "ਏਕੜ", f_irrigation: "ਸਿੰਚਾਈ", f_soil_lbl: "ਮਿੱਟੀ", f_tests: "ਮਿੱਟੀ ਟੈਸਟ", f_cycles: "ਫਸਲ ਚੱਕਰ",
     f_confirm_del: "ਕੀ ਤੁਸੀਂ ਯਕੀਨਨ ਇਸ ਖੇਤ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?",
-    st_title: "ਮਿੱਟੀ ਟੈਸਟ ਰਿਕਾਰਡ", st_desc: "AI ਸਿਫਾਰਸ਼ਾਂ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ ਮਿੱਟੀ ਦੇ ਟੈਸਟ ਦੇ ਨਤੀਜੇ ਦਰਜ ਕਰੋ।",
+    st_title: "ਮਿੱਟੀ ਟੈਸਟ ਰਿਕਾਰਡ", st_desc: "AI ਸਿਫਾਰਸ਼ਾਂ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ NPK ਅਤੇ ਮਿੱਟੀ ਦੇ ਟੈਸਟ ਦੇ ਨਤੀਜੇ ਦਰਜ ਕਰੋ।",
     st_ph: "ਮਿੱਟੀ ਦਾ pH", st_n: "ਨਾਈਟ੍ਰੋਜਨ (N)", st_p: "ਫਾਸਫੋਰਸ (P)", st_k: "ਪੋਟਾਸ਼ੀਅਮ (K)", st_moist: "ਨਮੀ (%)", st_temp: "ਤਾਪਮਾਨ (°C)",
     st_save: "ਡਾਟਾ ਸੁਰੱਖਿਅਤ ਕਰੋ", st_success: "ਮਿੱਟੀ ਟੈਸਟ ਸੁਰੱਖਿਅਤ ਹੋ ਗਿਆ!", st_fail: "ਸੁਰੱਖਿਅਤ ਕਰਨ ਵਿੱਚ ਅਸਫਲ।", st_no_farm: "ਕਿਰਪਾ ਕਰਕੇ ਪਹਿਲਾਂ ਇੱਕ ਖੇਤ ਸ਼ਾਮਲ ਕਰੋ।",
     s_title: "ਗਾਹਕੀ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ", s_desc: "ਪ੍ਰੀਮੀਅਮ AI ਸਮਰੱਥਾਵਾਂ ਨੂੰ ਅਨਲੌਕ ਕਰਨ ਲਈ ਆਪਣੀ ਯੋਜਨਾ ਨੂੰ ਅੱਪਗ੍ਰੇਡ ਕਰੋ।",
@@ -159,7 +167,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
     <>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
       <style>{`
         /* ─── DYNAMIC THEME VARIABLES ─── */
@@ -296,6 +304,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
         .fs-prof-alert.error { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
       `}</style>
 
+
       <div className="fs-prof-wrapper">
         <div className="fs-prof-header">
           <div style={{ maxWidth: '80rem', margin: '0 auto' }}>
@@ -343,7 +352,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
                 >
                   {activeTab === "details" && <UserDetailsTab txt={txt} />}
                   {activeTab === "farms" && <FarmManagementTab txt={txt} />}
-                  {activeTab === "soil" && <SoilHealthTab txt={txt} />}
+                  {activeTab === "soil" && <SoilHealthTab txt={txt} setActiveTab={setActiveTab} />}
                   {activeTab === "subscription" && <SubscriptionTab txt={txt} />}
                   {activeTab === "preferences" && <PreferencesTab txt={txt} isDark={isDark} setIsDark={setIsDark} />}
                 </motion.div>
@@ -360,6 +369,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
 // TAB 1: USER DETAILS 
 // ─────────────────────────────────────────────────────────────────────────────
 function UserDetailsTab({ txt }: { txt: any }) {
+  // ... (Identical to previous User Details logic)
   const queryClient = useQueryClient();
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: dashboardData, isLoading: dashLoading } = useDashboardOverview(); 
@@ -394,14 +404,8 @@ function UserDetailsTab({ txt }: { txt: any }) {
     <>
       <div className="fs-prof-card-header flex items-center justify-between">
         <div>
-          <h2 className="fs-prof-card-title">{txt.u_title}</h2>
+          <h2 className="fs-prof-card-title"><User className="text-[var(--prof-primary)]" /> {txt.u_title}</h2>
           <p className="fs-prof-card-desc">{txt.u_desc}</p>
-        </div>
-        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-emerald-100 flex items-center justify-center border-4 border-emerald-500/20 shadow-lg text-2xl md:text-3xl font-bold text-emerald-600 relative shrink-0 ml-4">
-          {formData.full_name?.[0]?.toUpperCase() || <User />}
-          <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-800 p-1.5 rounded-full shadow-sm border border-gray-200 dark:border-slate-600 text-gray-500 hover:text-emerald-500 cursor-pointer transition-colors">
-             <Camera size={14} />
-          </div>
         </div>
       </div>
       <div className="fs-prof-card-body">
@@ -411,44 +415,41 @@ function UserDetailsTab({ txt }: { txt: any }) {
           </motion.div>
         )}
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 p-4 md:p-5 rounded-2xl border" style={{ backgroundColor: 'var(--prof-primary-light)', borderColor: 'var(--prof-border)' }}>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-              <CalendarDays size={16} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 p-4 md:p-5 rounded-2xl border bg-[var(--prof-primary-light)] border-[var(--prof-border)] shadow-sm">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center gap-1.5" style={{ color: 'var(--prof-primary)' }}>
+              <CalendarDays size={16} className="shrink-0" />
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">{txt.u_member}</p>
             </div>
-            <p className="text-sm font-semibold truncate" style={{color:'var(--prof-text-main)'}}>
+            <p className="text-sm font-semibold truncate text-[var(--prof-text-main)]">
               {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "Just joined"}
             </p>
           </div>
-          
-          <div className="flex flex-col gap-1 border-l border-emerald-200 dark:border-emerald-900 pl-4">
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-              <Activity size={16} />
+          <div className="flex flex-col gap-1 border-l border-[var(--prof-primary)]/20 pl-4 min-w-0">
+            <div className="flex items-center gap-1.5" style={{ color: 'var(--prof-primary)' }}>
+              <Activity size={16} className="shrink-0" />
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">{txt.u_status}</p>
             </div>
-            <p className="text-sm font-semibold flex items-center gap-1.5 truncate" style={{color:'var(--prof-text-main)'}}>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+            <p className="text-sm font-semibold flex items-center gap-1.5 truncate text-[var(--prof-text-main)]">
+              <span className="w-2 h-2 rounded-full animate-pulse shrink-0 bg-[var(--prof-primary)]"></span>
               {user?.is_active ? txt.u_active : "Pending"}
             </p>
           </div>
-
-          <div className="flex flex-col gap-1 md:border-l md:border-emerald-200 dark:md:border-emerald-900 md:pl-4 col-span-2 sm:col-span-1 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-200 dark:border-emerald-900">
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-              <LayoutDashboard size={16} />
+          <div className="flex flex-col gap-1 md:border-l border-[var(--prof-primary)]/20 md:pl-4 col-span-2 sm:col-span-1 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 min-w-0">
+            <div className="flex items-center gap-1.5" style={{ color: 'var(--prof-primary)' }}>
+              <LayoutDashboard size={16} className="shrink-0" />
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">{txt.u_area}</p>
             </div>
-            <p className="text-sm font-semibold truncate" style={{color:'var(--prof-text-main)'}}>
+            <p className="text-sm font-semibold truncate text-[var(--prof-text-main)]">
               {totalArea} {txt.f_acres}
             </p>
           </div>
-
-          <div className="flex flex-col gap-1 border-l border-emerald-200 dark:border-emerald-900 pl-4 col-span-2 sm:col-span-1 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-200 dark:border-emerald-900">
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-              <Wheat size={16} />
+          <div className="flex flex-col gap-1 border-l border-[var(--prof-primary)]/20 pl-4 col-span-2 sm:col-span-1 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 min-w-0">
+            <div className="flex items-center gap-1.5" style={{ color: 'var(--prof-primary)' }}>
+              <Wheat size={16} className="shrink-0" />
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">{txt.u_crop}</p>
             </div>
-            <p className="text-sm font-semibold truncate" style={{color:'var(--prof-text-main)'}}>
+            <p className="text-sm font-semibold truncate text-[var(--prof-text-main)]">
               {primaryCrop}
             </p>
           </div>
@@ -484,6 +485,7 @@ function UserDetailsTab({ txt }: { txt: any }) {
 // TAB 2: FARM MANAGEMENT
 // ─────────────────────────────────────────────────────────────────────────────
 function FarmManagementTab({ txt }: { txt: any }) {
+  // ... (Identical to previous Farm Management logic)
   const queryClient = useQueryClient();
   const { data: farms, isLoading } = useFarms();
   const createFarmMutation = useCreateFarm();
@@ -501,7 +503,7 @@ function FarmManagementTab({ txt }: { txt: any }) {
   const [farmForm, setFarmForm] = useState(defaultFarm);
 
   const handleEditClick = (farm: any) => {
-    setFarmForm({ name: farm.name, location: farm.location, area: farm.area, soil_type: farm.soil_type, irrigation_type: farm.irrigation_type });
+    setFarmForm({ name: farm.name || "", location: farm.location || "", area: farm.area || 0, soil_type: farm.soil_type || "Loamy", irrigation_type: farm.irrigation_type || "Drip" });
     setEditingId(farm.id);
     setMode('edit');
   };
@@ -530,14 +532,11 @@ function FarmManagementTab({ txt }: { txt: any }) {
     <div className="flex flex-col h-full">
       <div className="fs-prof-card-header flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="fs-prof-card-title">{txt.f_title}</h2>
+          <h2 className="fs-prof-card-title"><MapPin className="text-[var(--prof-primary)]" /> {txt.f_title}</h2>
           <p className="fs-prof-card-desc">{txt.f_desc}</p>
         </div>
         {mode === 'list' && (
-          <button 
-            onClick={() => { setFarmForm(defaultFarm); setMode('add'); }} 
-            className="fs-prof-btn fs-prof-btn-sm  mx-auto mt-3 sm:w-auto shrink-1 shadow-lg shadow-emerald-500/20"
-          >
+          <button onClick={() => { setFarmForm(defaultFarm); setMode('add'); }} className="fs-prof-btn fs-prof-btn-sm mx-auto mt-3 sm:mt-0 sm:w-auto shrink-0 shadow-sm">
             <Plus size={16} /> {txt.f_add}
           </button>
         )}
@@ -552,16 +551,15 @@ function FarmManagementTab({ txt }: { txt: any }) {
               animate={{ opacity: 1, y: 0, scale: 1 }} 
               exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="mb-8" 
+              className="mb-8 bg-white dark:bg-slate-900/80 p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800"
               onSubmit={handleFormSubmit} 
-              style={{ background: 'var(--prof-card-bg)', padding: '2rem', borderRadius: '1.25rem', border: '1px solid var(--prof-border)', boxShadow: '0 25px 50px -12px var(--prof-shadow)' }}
             >
-              <div className="flex justify-between items-center mb-8 border-b pb-4" style={{ borderColor: 'var(--prof-border)' }}>
+              <div className="flex justify-between items-center mb-8 border-b pb-4 border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                  <div className="p-2.5 rounded-xl bg-[var(--prof-primary-light)] text-[var(--prof-primary)]">
                     <LayoutDashboard size={20} />
                   </div>
-                  <h3 className="text-xl font-bold" style={{ color: 'var(--prof-text-main)' }}>
+                  <h3 className="text-xl font-bold text-[var(--prof-text-main)]">
                     {mode === 'add' ? txt.f_reg : txt.f_mod}
                   </h3>
                 </div>
@@ -571,25 +569,25 @@ function FarmManagementTab({ txt }: { txt: any }) {
               <div className="fs-prof-form-grid mb-8">
                 <div>
                   <label className="fs-prof-label">{txt.f_name}</label>
-                  <input className="fs-prof-input" required value={farmForm.name} onChange={e => setFarmForm({...farmForm, name: e.target.value})} placeholder="e.g. North Field" />
+                  <input className="fs-prof-input bg-slate-50 dark:bg-slate-800" required value={farmForm.name} onChange={e => setFarmForm({...farmForm, name: e.target.value})} placeholder="e.g. North Field" />
                 </div>
                 <div>
                   <label className="fs-prof-label">{txt.f_loc}</label>
-                  <input className="fs-prof-input" required value={farmForm.location} onChange={e => setFarmForm({...farmForm, location: e.target.value})} placeholder="e.g. Village Name" />
+                  <input className="fs-prof-input bg-slate-50 dark:bg-slate-800" required value={farmForm.location} onChange={e => setFarmForm({...farmForm, location: e.target.value})} placeholder="e.g. Village Name" />
                 </div>
                 <div>
                   <label className="fs-prof-label">{txt.f_area}</label>
-                  <input className="fs-prof-input" type="number" step="0.1" required value={farmForm.area} onChange={e => setFarmForm({...farmForm, area: Number(e.target.value)})} />
+                  <input className="fs-prof-input bg-slate-50 dark:bg-slate-800" type="number" step="0.1" required value={farmForm.area} onChange={e => setFarmForm({...farmForm, area: Number(e.target.value)})} />
                 </div>
                 <div>
                   <label className="fs-prof-label">{txt.f_soil}</label>
-                  <select className="fs-prof-input" value={farmForm.soil_type} onChange={e => setFarmForm({...farmForm, soil_type: e.target.value})}>
+                  <select className="fs-prof-select bg-slate-50 dark:bg-slate-800 fs-prof-input bg-slate-50 dark:bg-slate-800" value={farmForm.soil_type} onChange={e => setFarmForm({...farmForm, soil_type: e.target.value})}>
                     <option value="Loamy">{txt.soil_opts.Loamy}</option><option value="Clay">{txt.soil_opts.Clay}</option><option value="Sandy">{txt.soil_opts.Sandy}</option><option value="Black">{txt.soil_opts.Black}</option>
                   </select>
                 </div>
-                <div className="fs-prof-full-width">
+                <div className="fs-prof-full-width ">
                   <label className="fs-prof-label">{txt.f_irr}</label>
-                  <select className="fs-prof-input" value={farmForm.irrigation_type} onChange={e => setFarmForm({...farmForm, irrigation_type: e.target.value})}>
+                  <select className="fs-prof-select bg-slate-50 dark:bg-slate-800 fs-prof-input bg-slate-50 dark:bg-slate-800" value={farmForm.irrigation_type} onChange={e => setFarmForm({...farmForm, irrigation_type: e.target.value})}>
                     <option value="Drip">{txt.irr_opts.Drip}</option><option value="Sprinkler">{txt.irr_opts.Sprinkler}</option><option value="Flood">{txt.irr_opts.Flood}</option><option value="Rainfed">{txt.irr_opts.Rainfed}</option>
                   </select>
                 </div>
@@ -610,11 +608,11 @@ function FarmManagementTab({ txt }: { txt: any }) {
           )}
 
           {!isLoading && mode === 'list' && (!farms || farms.length === 0) && (
-            <motion.div key="empty" initial={{opacity:0}} animate={{opacity:1}} className="flex flex-col items-center justify-center py-16 text-center" style={{ color: 'var(--prof-text-muted)' }}>
-              <div className="w-24 h-24 bg-emerald-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-                <LayoutDashboard size={40} className="text-emerald-300 dark:text-emerald-700" />
+            <motion.div key="empty" initial={{opacity:0}} animate={{opacity:1}} className="flex flex-col items-center justify-center py-16 text-center text-[var(--prof-text-muted)] border border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-900/50">
+              <div className="w-24 h-24 bg-[var(--prof-primary-light)] rounded-full flex items-center justify-center mb-6">
+                <LayoutDashboard size={40} className="text-[var(--prof-primary)]" />
               </div>
-              <p className="text-xl font-bold mb-2" style={{ color: 'var(--prof-text-main)' }}>{txt.f_empty_title}</p>
+              <p className="text-xl font-bold mb-2 text-[var(--prof-text-main)]">{txt.f_empty_title}</p>
               <p className="text-sm max-w-sm mb-8">{txt.f_empty_desc}</p>
               <button onClick={() => { setFarmForm(defaultFarm); setMode('add'); }} className="fs-prof-btn">
                 <Plus size={18} /> {txt.f_add}
@@ -625,24 +623,16 @@ function FarmManagementTab({ txt }: { txt: any }) {
           {!isLoading && mode === 'list' && farms && farms.length > 0 && (
             <motion.div layout key="grid" className="fs-prof-farm-grid">
               <AnimatePresence>
-                {farms.map((farm: any) => (
-                  <motion.div 
-                    layout 
-                    initial={{ opacity: 0, scale: 0.95 }} 
-                    animate={{ opacity: 1, scale: 1 }} 
-                    exit={{ opacity: 0, scale: 0.95 }} 
-                    transition={{ duration: 0.2 }}
-                    key={farm.id} 
-                    className="fs-prof-farm-item"
-                  >
+                {(farms || []).map((farm: any) => (
+                  <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }} key={farm.id} className="fs-prof-farm-item">
                     <div className="flex items-start justify-between mb-6">
                       <div className="flex items-center gap-3 min-w-0 pr-4">
-                        <div className="p-3 rounded-xl shrink-0" style={{ background: 'var(--prof-primary-light)', color: 'var(--prof-primary-dark)' }}>
+                        <div className="p-3 rounded-xl shrink-0 bg-[var(--prof-primary-light)] text-[var(--prof-primary)]">
                           <MapPin size={24} />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-lg font-bold truncate" style={{ color: 'var(--prof-text-main)' }}>{farm.name}</h3>
-                          <p className="text-sm truncate" style={{ color: 'var(--prof-text-muted)' }}>{farm.location}</p>
+                          <h3 className="text-lg font-bold truncate text-[var(--prof-text-main)]">{farm.name || "Unnamed Farm"}</h3>
+                          <p className="text-sm truncate text-[var(--prof-text-muted)]">{farm.location || "Unknown Location"}</p>
                         </div>
                       </div>
                       <div className="flex gap-2 shrink-0">
@@ -652,26 +642,23 @@ function FarmManagementTab({ txt }: { txt: any }) {
                          </button>
                       </div>
                     </div>
-
                     <div className="flex-1"></div>
-
                     <div className="w-full">
-                      <div className="space-y-3 pt-5 border-t p-3" style={{ borderColor: 'var(--prof-border)'}}>
-                        <div className="flex items-center text-sm" style={{ color: 'var(--prof-text-muted)'}}>
-                          <Sprout size={18} className="text-emerald-500 mr-3 shrink-0"/> 
-                          <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{farm.area}</span> {txt.f_acres}
+                      <div className="space-y-3 pt-5 border-t p-3 border-[var(--prof-border)] text-[var(--prof-text-muted)]">
+                        <div className="flex items-center text-sm">
+                          <Sprout size={18} className="text-[var(--prof-primary)] mr-3 shrink-0"/> 
+                          <span className="font-medium mr-1 truncate text-[var(--prof-text-main)]">{farm.area || 0}</span> {txt.f_acres}
                         </div>
-                        <div className="flex items-center text-sm mt-4" style={{ color: 'var(--prof-text-muted)'}}>
+                        <div className="flex items-center text-sm mt-4">
                           <Droplets size={18} className="text-blue-500 mr-3 shrink-0"/> 
-                          <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{txt.irr_opts[farm.irrigation_type as keyof typeof txt.irr_opts] || farm.irrigation_type}</span> {txt.f_irrigation}
+                          <span className="font-medium mr-1 truncate text-[var(--prof-text-main)]">{txt.irr_opts[farm.irrigation_type as keyof typeof txt.irr_opts] || farm.irrigation_type || "N/A"}</span> {txt.f_irrigation}
                         </div>
-                        <div className="flex items-center text-sm mt-4 mb-4" style={{ color: 'var(--prof-text-muted)'}}>
+                        <div className="flex items-center text-sm mt-4 mb-4">
                           <LayoutDashboard size={18} className="text-amber-500 mr-3 shrink-0"/> 
-                          <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{txt.soil_opts[farm.soil_type as keyof typeof txt.soil_opts] || farm.soil_type}</span> {txt.f_soil_lbl}
+                          <span className="font-medium mr-1 truncate text-[var(--prof-text-main)]">{txt.soil_opts[farm.soil_type as keyof typeof txt.soil_opts] || farm.soil_type || "N/A"}</span> {txt.f_soil_lbl}
                         </div>
                       </div>
-
-                      <div className="flex justify-between items-center mt-5 pt-4 border-t text-xs font-semibold uppercase tracking-wider" style={{ borderColor: 'var(--prof-border)', color: 'var(--prof-text-muted)'}}>
+                      <div className="flex justify-between items-center mt-5 pt-4 border-t text-xs font-semibold uppercase tracking-wider border-[var(--prof-border)] text-[var(--prof-text-muted)]">
                         <span className="flex items-center gap-1.5"><Shield size={14}/> {farm.soil_tests?.length || 0} {txt.f_tests}</span>
                         <span className="flex items-center gap-1.5"><CloudRain size={14}/> {farm.crop_cycles?.length || 0} {txt.f_cycles}</span>
                       </div>
@@ -688,12 +675,23 @@ function FarmManagementTab({ txt }: { txt: any }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 3: SOIL HEALTH (Data Entry Tab)
+// TAB 3: SOIL HEALTH (Context-Aware Redesign)
 // ─────────────────────────────────────────────────────────────────────────────
-function SoilHealthTab({ txt }: { txt: any }) {
+function SoilHealthTab({ txt, setActiveTab }: { txt: any, setActiveTab: (t: Tab) => void }) {
   const queryClient = useQueryClient();
   const { data: farms, isLoading: farmsLoading } = useFarms();
-  const primaryFarm = farms?.[0];
+  
+  const [selectedFarmId, setSelectedFarmId] = useState<number | "">("");
+  
+  // Set default farm safely when loaded
+  useEffect(() => {
+    if (farms && farms.length > 0 && selectedFarmId === "") {
+      setSelectedFarmId(farms[0].id);
+    }
+  }, [farms, selectedFarmId]);
+
+  const activeFarm = useMemo(() => (farms || []).find(f => f.id === Number(selectedFarmId)), [farms, selectedFarmId]);
+  const activeCrops = useMemo(() => (activeFarm?.crop_cycles || []).filter(c => c.status === "active"), [activeFarm]);
 
   const [soilForm, setSoilForm] = useState({
     soil_ph: "", nitrogen: "", phosphorus: "", potassium: "", soil_moisture: "", temperature: ""
@@ -702,15 +700,48 @@ function SoilHealthTab({ txt }: { txt: any }) {
   const [isSaving, setIsSaving] = useState(false);
   const [msg, setMsg] = useState({ type: "", text: "" });
 
+  // ─── ADDED: Pre-fill form when a new farm is selected ───
+  useEffect(() => {
+    if (activeFarm) {
+      const getLatestSoil = async () => {
+        try {
+          const test = await soilTestApi.getLatestByFarm(activeFarm.id);
+          if (test) {
+            setSoilForm({
+              soil_ph: String(test.soil_ph ?? ""),
+              nitrogen: String(test.nitrogen ?? ""),
+              phosphorus: String(test.phosphorus ?? ""),
+              potassium: String(test.potassium ?? ""),
+              soil_moisture: String(test.soil_moisture ?? ""),
+              temperature: String(test.temperature ?? ""),
+            });
+          }
+        } catch {
+          // If no test found, fall back to farm default or empty
+          const fallback = activeFarm.soil_tests?.[0];
+          setSoilForm({
+            soil_ph: String(fallback?.soil_ph ?? ""),
+            nitrogen: String(fallback?.nitrogen ?? ""),
+            phosphorus: String(fallback?.phosphorus ?? ""),
+            potassium: String(fallback?.potassium ?? ""),
+            soil_moisture: String(fallback?.soil_moisture ?? ""),
+            temperature: String(fallback?.temperature ?? ""),
+          });
+        }
+      };
+      getLatestSoil();
+    }
+  }, [activeFarm]);
+
   const submitSoilTest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!primaryFarm) {
+    if (!activeFarm) {
       setMsg({ type: "error", text: txt.st_no_farm });
       return;
     }
 
     const payload = {
-      farm_id: primaryFarm.id,
+      farm_id: activeFarm.id,
       soil_ph: Number(soilForm.soil_ph),
       nitrogen: Number(soilForm.nitrogen),
       phosphorus: Number(soilForm.phosphorus),
@@ -729,7 +760,6 @@ function SoilHealthTab({ txt }: { txt: any }) {
       await soilTestApi.create(payload);
       queryClient.invalidateQueries({ queryKey: ['farms'] });
       setMsg({ type: "success", text: txt.st_success });
-      setSoilForm({ soil_ph: "", nitrogen: "", phosphorus: "", potassium: "", soil_moisture: "", temperature: "" });
     } catch {
       setMsg({ type: "error", text: txt.st_fail });
     } finally {
@@ -739,24 +769,27 @@ function SoilHealthTab({ txt }: { txt: any }) {
 
   if (farmsLoading) return <LoadingSpinner txt={txt} />;
 
-  if (!primaryFarm) {
+  if (!farms || farms.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center" style={{ color: 'var(--prof-text-muted)' }}>
+      <div className="flex flex-col items-center justify-center py-20 text-center text-[var(--prof-text-muted)]">
         <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
           <TestTube size={40} className="text-red-400 dark:text-red-500" />
         </div>
-        <p className="text-xl font-bold mb-2" style={{ color: 'var(--prof-text-main)' }}>No Farm Detected</p>
-        <p className="text-sm max-w-sm">{txt.st_no_farm}</p>
+        <p className="text-xl font-bold mb-2 text-[var(--prof-text-main)]">No Farm Detected</p>
+        <p className="text-sm max-w-sm mb-6">{txt.st_no_farm}</p>
+        <button onClick={() => setActiveTab("farms")} className="fs-prof-btn">
+          Go to Farm Management
+        </button>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <div className="fs-prof-card-header flex items-center justify-between">
         <div>
           <h2 className="fs-prof-card-title flex items-center gap-2">
-            <TestTube className="text-emerald-500" /> {txt.st_title}
+            <TestTube className="text-[var(--prof-primary)]" /> {txt.st_title}
           </h2>
           <p className="fs-prof-card-desc">{txt.st_desc}</p>
         </div>
@@ -769,73 +802,106 @@ function SoilHealthTab({ txt }: { txt: any }) {
           </motion.div>
         )}
 
-        <form onSubmit={submitSoilTest} className="max-w-4xl bg-white dark:bg-slate-900/50 p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="max-w-4xl flex flex-col gap-6">
           
-          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600 dark:text-emerald-400">
-              <MapPin size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">Recording Data For</p>
-              <h3 className="font-bold text-slate-800 dark:text-slate-200">{primaryFarm.name}</h3>
-            </div>
-          </div>
-
-          <div className="fs-prof-form-grid fs-prof-form-grid-3 mb-8">
-            <div>
-              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-purple-500"/> {txt.st_ph}</label>
-              <input type="number" step="0.1" className="fs-prof-input" required value={soilForm.soil_ph} onChange={e => setSoilForm({...soilForm, soil_ph: e.target.value})} placeholder="e.g. 6.5" />
-            </div>
-            <div>
-              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-blue-500"/> {txt.st_n}</label>
-              <input type="number" className="fs-prof-input" required value={soilForm.nitrogen} onChange={e => setSoilForm({...soilForm, nitrogen: e.target.value})} placeholder="mg/kg" />
-            </div>
-            <div>
-              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-amber-500"/> {txt.st_p}</label>
-              <input type="number" className="fs-prof-input" required value={soilForm.phosphorus} onChange={e => setSoilForm({...soilForm, phosphorus: e.target.value})} placeholder="mg/kg" />
-            </div>
-            <div>
-              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-red-500"/> {txt.st_k}</label>
-              <input type="number" className="fs-prof-input" required value={soilForm.potassium} onChange={e => setSoilForm({...soilForm, potassium: e.target.value})} placeholder="mg/kg" />
-            </div>
-            <div>
-              <label className="fs-prof-label flex items-center gap-2"><Droplets size={16} className="text-cyan-500"/> {txt.st_moist}</label>
-              <input type="number" step="0.1" className="fs-prof-input" required value={soilForm.soil_moisture} onChange={e => setSoilForm({...soilForm, soil_moisture: e.target.value})} placeholder="e.g. 45" />
-            </div>
-            <div>
-              <label className="fs-prof-label flex items-center gap-2"><Thermometer size={16} className="text-orange-500"/> {txt.st_temp}</label>
-              <input type="number" step="0.1" className="fs-prof-input" required value={soilForm.temperature} onChange={e => setSoilForm({...soilForm, temperature: e.target.value})} placeholder="e.g. 24.5" />
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
-  
-            <p className="text-sm text-slate-500 max-w-xl">
-              Saving a test securely updates your Dashboard analytics and AI crop predictions instantly.
-            </p>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="fs-prof-btn w-full sm:w-auto flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+          {/* STEP 1: Select Farm */}
+          <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800">
+            <label className="fs-prof-label mb-3 text-lg ">1. Select Farm for Testing</label>
+            <select 
+              className="fs-prof-select ml-3 mt-3 border p-3 rounded-xl text-lg font-bold bg-slate-50 dark:bg-slate-800 fs-prof-input bg-slate-50 dark:bg-slate-800" 
+              value={selectedFarmId} 
+              onChange={(e) => setSelectedFarmId(Number(e.target.value))}
             >
-              {isSaving ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <Save size={18} />
-              )}
-              {txt.st_save}
-            </button>
-
+              {(farms || []).map(f => (
+                <option key={f.id} value={f.id}>{f.name} - {f.location}</option>
+              ))}
+            </select>
           </div>
-        </form>
+
+          {/* STEP 2: Crop Context Box */}
+          <div className="fs-prof-input bg-slate-50 dark:bg-slate-800 bg-[var(--prof-primary-light)] p-6 rounded-xl border border-[var(--prof-primary-border)]">
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div className="min-w-0 p-2">
+                <label className="fs-prof-label text-[var(--prof-primary)] mb-1">Target Crop / Context</label>
+                <p className="text-sm font-medium opacity-80 text-[var(--prof-text-main)]">
+                  Updating NPK values directly affects AI yield and fertilizer recommendations.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                {activeCrops && activeCrops.length > 0 ? (
+                  <>
+                    <span className="text-s font-bold uppercase tracking-wider text-[var(--prof-primary)] ">Currently Growing:</span>
+                    {(activeCrops || []).map(c => (
+                      <span key={c.id} className="bg-white text-[var(--prof-primary)] px-3 py-1.5 rounded-lg border border-[var(--prof-primary-border)] font-bold shadow-sm flex items-center gap-1.5 max-w-[150px] truncate">
+                        <Leaf size={14} className="shrink-0"/> <span className="truncate">{c.crop_name_hindi || c.crop_name}</span>
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  <span className="text-sm font-semibold text-[var(--prof-primary)]/80">No active crops detected.</span>
+                )}
+                <button onClick={() => setActiveTab("farms")} className="text-sm font-bold text-[var(--prof-primary)] underline underline-offset-2 ml-2 hover:opacity-80">
+                  Manage Crops
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* STEP 3: Actual Form */}
+          <form onSubmit={submitSoilTest} className="bg-white dark:bg-slate-900/50 p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 mt-4">
+            <div className="mb-6 border-b pb-4 ml-4 border-[var(--prof-border)]">
+              <label className="fs-prof-label text-lg">
+                2. Update Soil Metrics for {activeFarm?.name || "Farm"}
+              </label>
+              <p className="text-sm text-[var(--prof-text-muted)]">Previous values are pre-filled below if they exist.</p>
+            </div>
+
+            <div className="fs-prof-form-grid fs-prof-form-grid-3 mb-8">
+              <div className="bg-vibrant-ocean p-4 rounded-xl">
+                <label className="fs-prof-label flex items-center gap-2 mb-2"><Droplets size={16} className="text-vibrant-ocean"/> {txt.st_moist}</label>
+                <input type="number" step="any" className="fs-prof-input bg-white dark:bg-slate-800 border-0 shadow-sm" required value={soilForm.soil_moisture} onChange={e => setSoilForm({...soilForm, soil_moisture: e.target.value})} placeholder="e.g. 45" />
+              </div>
+              <div className="bg-vibrant-sun p-4 rounded-xl">
+                <label className="fs-prof-label flex items-center gap-2 mb-2"><Thermometer size={16} className="text-vibrant-sun"/> {txt.st_temp}</label>
+                <input type="number" step="any" className="fs-prof-input bg-white dark:bg-slate-800 border-0 shadow-sm" required value={soilForm.temperature} onChange={e => setSoilForm({...soilForm, temperature: e.target.value})} placeholder="e.g. 24.5" />
+              </div>
+              <div className="bg-vibrant-amethyst p-4 rounded-xl">
+                <label className="fs-prof-label flex items-center gap-2 mb-2"><Activity size={16} className="text-vibrant-amethyst"/> {txt.st_ph}</label>
+                <input type="number" step="any" className="fs-prof-input bg-white dark:bg-slate-800 border-0 shadow-sm" required value={soilForm.soil_ph} onChange={e => setSoilForm({...soilForm, soil_ph: e.target.value})} placeholder="e.g. 6.5" />
+              </div>
+              
+              <div className="p-4 mx-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <label className="fs-prof-label flex items-center gap-2 text-blue-600 mb-2">Nitrogen (N)</label>
+                <input type="number" step="any" className="fs-prof-input bg-white dark:bg-slate-900" required value={soilForm.nitrogen} onChange={e => setSoilForm({...soilForm, nitrogen: e.target.value})} placeholder="mg/kg" />
+              </div>
+              <div className="p-4 mx-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <label className="fs-prof-label flex items-center gap-2 text-amber-500 mb-2">Phosphorus (P)</label>
+                <input type="number" step="any" className="fs-prof-input bg-white dark:bg-slate-900" required value={soilForm.phosphorus} onChange={e => setSoilForm({...soilForm, phosphorus: e.target.value})} placeholder="mg/kg" />
+              </div>
+              <div className="p-4 mx-2 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <label className="fs-prof-label flex items-center gap-2 text-red-500 mb-2">Potassium (K)</label>
+                <input type="number" step="any" className="fs-prof-input bg-white dark:bg-slate-900" required value={soilForm.potassium} onChange={e => setSoilForm({...soilForm, potassium: e.target.value})} placeholder="mg/kg" />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:items-center sm:justify-between gap-4 pt-6 border-t" style={{ borderColor: 'var(--prof-border)' }}>
+              <p className="text-sm max-w-lg mx-auto" style={{ color: 'var(--prof-text-muted)' }}>
+                Saving this securely updates your Dashboard analytics and AI predictions for <strong>{activeFarm?.name || "the selected farm"}</strong>.
+              </p>
+              <button type="submit" disabled={isSaving} className="fs-prof-btn  sm:w-auto shrink-0 shadow-lg shadow-[#03402d]/20">
+                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {txt.st_save}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 4: SUBSCRIPTION (With Razorpay Integration)
+// TAB 4: SUBSCRIPTION
 // ─────────────────────────────────────────────────────────────────────────────
 function SubscriptionTab({ txt }: { txt: any }) {
   const [cycle, setCycle] = useState<'mo'|'yr'>('mo');
@@ -892,7 +958,7 @@ function SubscriptionTab({ txt }: { txt: any }) {
         contact: user?.phone || ''
       },
       theme: {
-        color: '#10b981' 
+        color: '#03402d' 
       }
     };
 
@@ -903,14 +969,11 @@ function SubscriptionTab({ txt }: { txt: any }) {
   return (
     <>
       <div className="fs-prof-card-header text-center">
-        <h2 className="fs-prof-card-title text-2xl md:text-3xl mb-2">{txt.s_title}</h2>
+        <h2 className="fs-prof-card-title text-2xl md:text-3xl mb-2 justify-center">{txt.s_title}</h2>
         <p className="fs-prof-card-desc max-w-2xl mx-auto">{txt.s_desc}</p>
       </div>
       <div className="fs-prof-card-body" style={{ background: 'var(--prof-input-bg)' }}>
         
-        {/* Billing Overview Card */}
-        
-
         <div className="fs-prof-sub-toggle-wrap">
           <div className="fs-prof-sub-toggle shadow-inner w-full max-w-sm flex">
             <button onClick={() => setCycle('mo')} className={`flex-1 fs-prof-sub-toggle-btn ${cycle === 'mo' ? 'active shadow-md' : ''}`} style={{ backgroundColor: cycle === 'mo' ? 'var(--prof-card-bg)' : 'transparent' }}>
@@ -923,7 +986,7 @@ function SubscriptionTab({ txt }: { txt: any }) {
         </div>
 
         <div className="fs-prof-price-grid">
-          {plans.map((p, i) => (
+          {(plans || []).map((p, i) => (
             <div key={i} className={`fs-prof-price-card ${p.highlight ? 'premium' : ''}`}>
               {p.highlight && <div className="fs-prof-badge"><Star size={12} className="mr-1 inline-block mb-0.5"/> {txt.s_current}</div>}
               
@@ -940,7 +1003,7 @@ function SubscriptionTab({ txt }: { txt: any }) {
 
               <div className="flex-1 border-t pt-6 mb-6" style={{ borderColor: 'var(--prof-border)' }}>
                 <ul className="flex flex-col gap-4 m-0 p-0 list-none">
-                  {p.features.map((f, j) => (
+                  {(p.features || []).map((f, j) => (
                     <li key={j} className="flex items-start gap-3 text-sm font-medium" style={{ color: 'var(--prof-text-main)' }}>
                       <CheckCircle2 size={18} color="var(--prof-primary)" className="shrink-0 mt-0.5" /> 
                       <span>{f}</span>
@@ -1021,14 +1084,14 @@ function PreferencesTab({ txt, isDark, setIsDark }: { txt: any, isDark: boolean,
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => toggleTheme(false)}
-                className={`flex-1 flex sm:flex-col items-center justify-center gap-3 sm:gap-0 p-4 rounded-xl border-2 transition-all ${!isDark ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300'}`}
+                className={`flex-1 flex sm:flex-col items-center justify-center gap-3 sm:gap-0 p-4 rounded-xl border-2 transition-all ${!isDark ? 'border-[var(--prof-primary)] bg-[var(--prof-primary-light)] text-[var(--prof-primary)]' : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-emerald-300'}`}
               >
                 <Sun size={24} className="sm:mb-2" />
                 <span className="font-semibold text-sm">{txt.p_light}</span>
               </button>
               <button 
                 onClick={() => toggleTheme(true)}
-                className={`flex-1 flex sm:flex-col items-center justify-center gap-3 sm:gap-0 p-4 rounded-xl border-2 transition-all ${isDark ? 'border-emerald-500 bg-slate-800 text-emerald-400' : 'border-slate-200 text-slate-500 hover:border-emerald-300'}`}
+                className={`flex-1 flex sm:flex-col items-center justify-center gap-3 sm:gap-0 p-4 rounded-xl border-2 transition-all ${isDark ? 'border-[var(--prof-primary)] bg-slate-800 text-[var(--prof-primary)]' : 'border-slate-200 text-slate-500 hover:border-emerald-300'}`}
               >
                 <Moon size={24} className="sm:mb-2" />
                 <span className="font-semibold text-sm">{txt.p_dark}</span>
@@ -1036,11 +1099,11 @@ function PreferencesTab({ txt, isDark, setIsDark }: { txt: any, isDark: boolean,
             </div>
           </div>
 
-          <div className="border-t pt-8" style={{ borderColor: 'var(--prof-border)' }}>
-            <label className="fs-prof-label text-base">{txt.p_lang}</label>
+          <div className="border-t pt-8 " style={{ borderColor: 'var(--prof-border)' }}>
+            <label className="fs-prof-label text-base mt-4">{txt.p_lang}</label>
             <p className="text-sm mb-4" style={{ color: 'var(--prof-text-muted)' }}>{txt.p_lang_desc}</p>
             <select 
-              className="fs-prof-input" 
+              className="fs-prof-select fs-prof-input bg-slate-50 dark:bg-slate-800" 
               value={localLang} 
               onChange={(e) => setLocalLang(e.target.value as Language)}
             >
@@ -1064,7 +1127,7 @@ function PreferencesTab({ txt, isDark, setIsDark }: { txt: any, isDark: boolean,
 
 function LoadingSpinner({ txt }: { txt: any }) {
   return (
-    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="flex flex-col justify-center items-center h-64 text-emerald-500">
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="flex flex-col justify-center items-center h-64 text-[var(--prof-primary)]">
       <Loader2 className="animate-spin w-10 h-10 mb-4" />
       <span className="text-sm font-medium" style={{color: 'var(--prof-text-muted)'}}>{txt?.loading || "Fetching data..."}</span>
     </motion.div>

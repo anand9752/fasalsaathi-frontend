@@ -144,6 +144,7 @@ export const farmCalendarApi = {
 };
 
 // Crop API
+// Crop API
 export const cropApi = {
     detectDisease: (image: File) => {
         const formData = new FormData();
@@ -168,7 +169,12 @@ export const cropApi = {
     }) => apiClient.post('/crops/yield-prediction', params).then(response => response.data),
 
     getAllCrops: () =>
-        apiClient.get<Crop[]>('/crops').then(response => response.data)
+        apiClient.get<Crop[]>('/crops').then(response => response.data), // <--- ADD THE COMMA HERE!
+
+    getManagedCrops: (farmId?: number) =>
+        apiClient.get<FarmCropCycle[]>('/crops/managed', { 
+            params: farmId ? { farm_id: farmId } : {} 
+        }).then(response => response.data)
 };
 
 // Weather API
