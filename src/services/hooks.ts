@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authApi, dashboardApi, farmApi, cropApi, weatherApi, marketApi } from './api';
+import { authApi, dashboardApi, farmApi, farmCalendarApi, cropApi, weatherApi, marketApi, soilTestApi } from './api';
 
 // Auth Hooks
 export const useRegister = () => {
@@ -67,6 +67,34 @@ export const useDeleteFarm = () => {
     });
 };
 
+export const useLatestSoilTest = (farmId: number) => {
+    return useQuery({
+        queryKey: ['soil-test', 'latest', farmId],
+        queryFn: () => soilTestApi.getLatestByFarm(farmId),
+        enabled: !!farmId,
+    });
+};
+
+export const useCreateSoilTest = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: soilTestApi.create,
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['soil-test', 'latest', variables.farm_id] });
+            queryClient.invalidateQueries({ queryKey: ['farms'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard', 'overview'] });
+        }
+    });
+};
+
+export const useFarmCalendar = (farmId: number, params?: { lat?: number; lon?: number }) => {
+    return useQuery({
+        queryKey: ['farm-calendar', farmId, params],
+        queryFn: () => farmCalendarApi.getByFarm(farmId, params),
+        enabled: !!farmId,
+    });
+};
+
 // Crop Hooks
 export const useDiseaseDetection = () => {
     return useMutation({
@@ -109,7 +137,7 @@ export const useWeatherHistory = (location: string, days: number = 30) => {
 };
 
 // Market Hooks
-export const useCurrentPrices = (params?: { market?: string; crop_id?: number }) => {
+export const useCurrentPrices = (params?: { state?: string; market?: string; commodity?: string; crop_id?: number }) => {
     return useQuery({
         queryKey: ['market', 'prices', 'current', params],
         queryFn: () => marketApi.getCurrentPrices(params)
