@@ -4,22 +4,22 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   User, MapPin, CreditCard, Shield, Loader2, Save, ArrowLeft, 
   Camera, Plus, Sprout, CloudRain, CheckCircle2, Star, Droplets, 
-  LayoutDashboard, Pencil, Trash2, X, Moon, Sun, CalendarDays, Activity, Wheat
+  LayoutDashboard, Pencil, Trash2, X, Moon, Sun, CalendarDays, Activity, Wheat, TestTube, Thermometer
 } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // Added for routing to Contact page
+import { useNavigate } from "react-router-dom";
 
 // Import hooks and API services
 import { useLanguage, Language } from "../hooks/useLanguage";
 import { useCurrentUser, useFarms, useCreateFarm, useDeleteFarm, useDashboardOverview, useManagedCrops, useCreateManagedCrop, useUpdateManagedCrop } from "../services/hooks";
-import { authApi, farmApi } from "../services/api";
+import { authApi, farmApi, soilTestApi } from "../services/api";
 
-type Tab = "details" | "farms" | "subscription" | "preferences";
+type Tab = "details" | "farms" | "soil" | "subscription" | "preferences";
 
 // ─── TRANSLATION DICTIONARY ────────────────────────────────────────────────
 const t = {
   en: {
     title: "Account Settings", back: "Dashboard",
-    tab_user: "User Details", tab_farm: "Farm Management", tab_sub: "Subscription", tab_pref: "App Preferences",
+    tab_user: "User Details", tab_farm: "Farm Management", tab_sub: "Subscription", tab_pref: "App Preferences", tab_soil: "Soil Health",
     u_title: "Public Profile", u_desc: "Update your personal information and contact details.",
     u_name: "Full Name", u_email: "Email Address", u_phone: "Phone Number",
     u_member: "Member Since", u_status: "Account Status", u_active: "Active",
@@ -32,6 +32,9 @@ const t = {
     f_empty_title: "No farms registered yet.", f_empty_desc: "Add your first farm to unlock yield predictions and insights.",
     f_acres: "Acres", f_irrigation: "Irrigation", f_soil_lbl: "Soil", f_tests: "Soil Tests", f_cycles: "Crop Cycles",
     f_confirm_del: "Are you sure you want to delete this farm? This action cannot be undone.",
+    st_title: "Soil Test Records", st_desc: "Log your latest soil test results to improve AI recommendations and track land health.",
+    st_ph: "Soil pH", st_n: "Nitrogen (N)", st_p: "Phosphorus (P)", st_k: "Potassium (K)", st_moist: "Soil Moisture (%)", st_temp: "Temperature (°C)",
+    st_save: "Save Soil Data", st_success: "Soil test saved successfully! Dashboard updated.", st_fail: "Failed to save soil test.", st_no_farm: "Please add a farm in 'Farm Management' first.",
     s_title: "Manage Subscription", s_desc: "Upgrade your plan to unlock premium AI capabilities and maximize yield.",
     s_current: "Current Plan", s_manage: "Manage Billing", s_upgrade: "Upgrade Plan", s_mo: "/month", s_yr: "/year",
     s_monthly: "Monthly", s_yearly: "Yearly (Save 20%)", s_cancel: "Cancel Subscription", s_next_bill: "Next Billing Date",
@@ -46,7 +49,7 @@ const t = {
   },
   hi: {
     title: "खाता सेटिंग्स", back: "डैशबोर्ड",
-    tab_user: "उपयोगकर्ता विवरण", tab_farm: "खेत प्रबंधन", tab_sub: "सदस्यता", tab_pref: "ऐप प्राथमिकताएं",
+    tab_user: "उपयोगकर्ता विवरण", tab_farm: "खेत प्रबंधन", tab_sub: "सदस्यता", tab_pref: "ऐप प्राथमिकताएं", tab_soil: "मृदा स्वास्थ्य",
     u_title: "सार्वजनिक प्रोफ़ाइल", u_desc: "अपनी व्यक्तिगत जानकारी और संपर्क विवरण अपडेट करें।",
     u_name: "पूरा नाम", u_email: "ईमेल पता", u_phone: "फोन नंबर",
     u_member: "सदस्यता दिनांक", u_status: "खाता स्थिति", u_active: "सक्रिय",
@@ -58,12 +61,15 @@ const t = {
     f_save: "नया खेत सहेजें", f_update: "खेत अपडेट करें", f_cancel: "रद्द करें",
     f_empty_title: "अभी तक कोई खेत पंजीकृत नहीं है।", f_empty_desc: "उपज की भविष्यवाणी अनलॉक करने के लिए अपना पहला खेत जोड़ें।",
     f_acres: "एकड़", f_irrigation: "सिंचाई", f_soil_lbl: "मिट्टी", f_tests: "मिट्टी परीक्षण", f_cycles: "फसल चक्र",
-    f_confirm_del: "क्या आप निश्चित रूप से इस खेत को हटाना चाहते हैं? इसे पूर्ववत नहीं किया जा सकता।",
+    f_confirm_del: "क्या आप निश्चित रूप से इस खेत को हटाना चाहते हैं?",
+    st_title: "मिट्टी परीक्षण रिकॉर्ड", st_desc: "AI सिफारिशों को बेहतर बनाने के लिए अपनी नवीनतम मिट्टी परीक्षण परिणाम दर्ज करें।",
+    st_ph: "मिट्टी का pH", st_n: "नाइट्रोजन (N)", st_p: "फास्फोरस (P)", st_k: "पोटेशियम (K)", st_moist: "नमी (%)", st_temp: "तापमान (°C)",
+    st_save: "मिट्टी डेटा सहेजें", st_success: "मिट्टी परीक्षण सफलतापूर्वक सहेजा गया!", st_fail: "सहेजने में विफल।", st_no_farm: "कृपया पहले 'खेत प्रबंधन' में एक खेत जोड़ें।",
     s_title: "सदस्यता प्रबंधित करें", s_desc: "प्रीमियम एआई क्षमताओं को अनलॉक करने के लिए अपनी योजना को अपग्रेड करें।",
     s_current: "वर्तमान योजना", s_manage: "बिलिंग प्रबंधित करें", s_upgrade: "योजना अपग्रेड करें", s_mo: "/महीना", s_yr: "/वर्ष",
     s_monthly: "मासिक", s_yearly: "वार्षिक (20% बचाएं)", s_cancel: "सदस्यता रद्द करें", s_next_bill: "अगली बिलिंग तिथि",
     p_title: "ऐप प्राथमिकताएं", p_desc: "अपने फसलसाथी अनुभव और क्षेत्रीय सेटिंग्स को अनुकूलित करें।",
-    p_lang: "प्रदर्शन भाषा", p_lang_desc: "यह विश्व स्तर पर एआई फसल सिफारिशों और डैशबोर्ड के लिए भाषा बदलता है।",
+    p_lang: "प्रदर्शन भाषा", p_lang_desc: "यह विश्व स्तर पर भाषा बदलता है।",
     p_theme: "डैशबोर्ड थीम", p_theme_desc: "लाइट मोड या बैटरी बचाने वाले डार्क मोड के बीच चुनें।",
     p_light: "लाइट मोड", p_dark: "डार्क मोड",
     p_apply: "प्राथमिकताएं लागू करें", p_success: "एप्लिकेशन प्राथमिकताएं सफलतापूर्वक सहेजी गईं।", p_fail: "प्राथमिकताएं अपडेट करने में विफल।",
@@ -73,7 +79,7 @@ const t = {
   },
   mr: {
     title: "खाते सेटिंग्ज", back: "डॅशबोर्ड",
-    tab_user: "वापरकर्ता तपशील", tab_farm: "शेती व्यवस्थापन", tab_sub: "सबस्क्रिप्शन", tab_pref: "ॲप प्राधान्ये",
+    tab_user: "वापरकर्ता तपशील", tab_farm: "शेती व्यवस्थापन", tab_sub: "सबस्क्रिप्शन", tab_pref: "ॲप प्राधान्ये", tab_soil: "माती आरोग्य",
     u_title: "सार्वजनिक प्रोफाईल", u_desc: "तुमची वैयक्तिक माहिती आणि संपर्क तपशील अपडेट करा.",
     u_name: "पूर्ण नाव", u_email: "ईमेल पत्ता", u_phone: "फोन नंबर",
     u_member: "सदस्यता दिनांक", u_status: "खाते स्थिती", u_active: "सक्रिय",
@@ -85,22 +91,25 @@ const t = {
     f_save: "नवीन शेत सेव्ह करा", f_update: "शेत अपडेट करा", f_cancel: "रद्द करा",
     f_empty_title: "अद्याप कोणत्याही शेताची नोंदणी केलेली नाही.", f_empty_desc: "उत्पन्नाचा अंदाज अनलॉक करण्यासाठी तुमचे पहिले शेत जोडा.",
     f_acres: "एकर", f_irrigation: "सिंचन", f_soil_lbl: "माती", f_tests: "माती परीक्षण", f_cycles: "पीक चक्र",
-    f_confirm_del: "तुम्हाला नक्की हे शेत काढायचे आहे का? ही कृती पूर्ववत केली जाऊ शकत नाही.",
+    f_confirm_del: "तुम्हाला नक्की हे शेत काढायचे आहे का?",
+    st_title: "माती परीक्षण नोंदी", st_desc: "AI शिफारसी सुधारण्यासाठी तुमचे नवीनतम माती परीक्षण परिणाम नोंदवा.",
+    st_ph: "मातीचा pH", st_n: "नायट्रोजन (N)", st_p: "फॉस्फरस (P)", st_k: "पोटॅशियम (K)", st_moist: "मातीतील ओलावा (%)", st_temp: "तापमान (°C)",
+    st_save: "माती डेटा सेव्ह करा", st_success: "माती परीक्षण यशस्वीरित्या सेव्ह केले!", st_fail: "सेव्ह करण्यात अयशस्वी.", st_no_farm: "कृपया प्रथम 'शेती व्यवस्थापन' मध्ये शेत जोडा.",
     s_title: "सबस्क्रिप्शन व्यवस्थापित करा", s_desc: "प्रीमियम AI क्षमता अनलॉक करण्यासाठी तुमचा प्लॅन अपग्रेड करा.",
     s_current: "सध्याचा प्लॅन", s_manage: "बिलिंग व्यवस्थापित करा", s_upgrade: "प्लॅन अपग्रेड करा", s_mo: "/महिना", s_yr: "/वर्ष",
     s_monthly: "मासिक", s_yearly: "वार्षिक (२०% वाचवा)", s_cancel: "सबस्क्रिप्शन रद्द करा", s_next_bill: "पुढील बिलिंग तारीख",
-    p_title: "ॲप प्राधान्ये", p_desc: "तुमचा फसलसाथी अनुभव आणि प्रादेशिक सेटिंग्ज सानुकूलित करा.",
-    p_lang: "प्रदर्शन भाषा", p_lang_desc: "हे जागतिक स्तरावर AI पीक शिफारसी आणि डॅशबोर्डसाठी भाषा बदलते.",
+    p_title: "ॲप प्राधान्ये", p_desc: "तुमचा फसलसाथी अनुभव सानुकूलित करा.",
+    p_lang: "प्रदर्शन भाषा", p_lang_desc: "हे जागतिक स्तरावर भाषा बदलते.",
     p_theme: "डॅशबोर्ड थीम", p_theme_desc: "लाइट मोड किंवा डार्क मोड दरम्यान निवडा.",
     p_light: "लाइट मोड", p_dark: "डार्क मोड",
-    p_apply: "प्राधान्ये लागू करा", p_success: "ॲप्लिकेशन प्राधान्ये यशस्वीरित्या सेव्ह केली.", p_fail: "प्राधान्ये अपडेट करण्यात अयशस्वी.",
+    p_apply: "प्राधान्ये लागू करा", p_success: "ॲप्लिकेशन प्राधान्ये यशस्वीरित्या सेव्ह केली.", p_fail: "अपडेट करण्यात अयशस्वी.",
     loading: "डेटा मिळवत आहे...",
     soil_opts: { Loamy: "पोयटा", Clay: "चिकन", Sandy: "वाळू", Black: "काळी कापूस" },
     irr_opts: { Drip: "ठिबक", Sprinkler: "तुषार", Flood: "पूर", Rainfed: "पावसावर अवलंबून" }
   },
   pa: {
     title: "ਖਾਤਾ ਸੈਟਿੰਗਾਂ", back: "ਡੈਸ਼ਬੋਰਡ",
-    tab_user: "ਉਪਭੋਗਤਾ ਵੇਰਵੇ", tab_farm: "ਖੇਤ ਪ੍ਰਬੰਧਨ", tab_sub: "ਗਾਹਕੀ", tab_pref: "ਐਪ ਤਰਜੀਹਾਂ",
+    tab_user: "ਉਪਭੋਗਤਾ ਵੇਰਵੇ", tab_farm: "ਖੇਤ ਪ੍ਰਬੰਧਨ", tab_sub: "ਗਾਹਕੀ", tab_pref: "ਐਪ ਤਰਜੀਹਾਂ", tab_soil: "ਮਿੱਟੀ ਦੀ ਸਿਹਤ",
     u_title: "ਜਨਤਕ ਪ੍ਰੋਫਾਈਲ", u_desc: "ਆਪਣੀ ਨਿੱਜੀ ਜਾਣਕਾਰੀ ਅਤੇ ਸੰਪਰਕ ਵੇਰਵੇ ਅੱਪਡੇਟ ਕਰੋ।",
     u_name: "ਪੂਰਾ ਨਾਮ", u_email: "ਈਮੇਲ ਪਤਾ", u_phone: "ਫ਼ੋਨ ਨੰਬਰ",
     u_member: "ਮੈਂਬਰਸ਼ਿਪ ਮਿਤੀ", u_status: "ਖਾਤਾ ਸਥਿਤੀ", u_active: "ਸਰਗਰਮ",
@@ -112,7 +121,10 @@ const t = {
     f_save: "ਨਵਾਂ ਖੇਤ ਸੁਰੱਖਿਅਤ ਕਰੋ", f_update: "ਖੇਤ ਅੱਪਡੇਟ ਕਰੋ", f_cancel: "ਰੱਦ ਕਰੋ",
     f_empty_title: "ਹਾਲੇ ਤੱਕ ਕੋਈ ਖੇਤ ਰਜਿਸਟਰਡ ਨਹੀਂ ਹੈ।", f_empty_desc: "ਝਾੜ ਦੀਆਂ ਭਵਿੱਖਬਾਣੀਆਂ ਨੂੰ ਅਨਲੌਕ ਕਰਨ ਲਈ ਆਪਣਾ ਪਹਿਲਾ ਖੇਤ ਸ਼ਾਮਲ ਕਰੋ।",
     f_acres: "ਏਕੜ", f_irrigation: "ਸਿੰਚਾਈ", f_soil_lbl: "ਮਿੱਟੀ", f_tests: "ਮਿੱਟੀ ਟੈਸਟ", f_cycles: "ਫਸਲ ਚੱਕਰ",
-    f_confirm_del: "ਕੀ ਤੁਸੀਂ ਯਕੀਨਨ ਇਸ ਖੇਤ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ? ਇਹ ਕਾਰਵਾਈ ਵਾਪਸ ਨਹੀਂ ਲਈ ਜਾ ਸਕਦੀ।",
+    f_confirm_del: "ਕੀ ਤੁਸੀਂ ਯਕੀਨਨ ਇਸ ਖੇਤ ਨੂੰ ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?",
+    st_title: "ਮਿੱਟੀ ਟੈਸਟ ਰਿਕਾਰਡ", st_desc: "AI ਸਿਫਾਰਸ਼ਾਂ ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਲਈ ਮਿੱਟੀ ਦੇ ਟੈਸਟ ਦੇ ਨਤੀਜੇ ਦਰਜ ਕਰੋ।",
+    st_ph: "ਮਿੱਟੀ ਦਾ pH", st_n: "ਨਾਈਟ੍ਰੋਜਨ (N)", st_p: "ਫਾਸਫੋਰਸ (P)", st_k: "ਪੋਟਾਸ਼ੀਅਮ (K)", st_moist: "ਨਮੀ (%)", st_temp: "ਤਾਪਮਾਨ (°C)",
+    st_save: "ਡਾਟਾ ਸੁਰੱਖਿਅਤ ਕਰੋ", st_success: "ਮਿੱਟੀ ਟੈਸਟ ਸੁਰੱਖਿਅਤ ਹੋ ਗਿਆ!", st_fail: "ਸੁਰੱਖਿਅਤ ਕਰਨ ਵਿੱਚ ਅਸਫਲ।", st_no_farm: "ਕਿਰਪਾ ਕਰਕੇ ਪਹਿਲਾਂ ਇੱਕ ਖੇਤ ਸ਼ਾਮਲ ਕਰੋ।",
     s_title: "ਗਾਹਕੀ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ", s_desc: "ਪ੍ਰੀਮੀਅਮ AI ਸਮਰੱਥਾਵਾਂ ਨੂੰ ਅਨਲੌਕ ਕਰਨ ਲਈ ਆਪਣੀ ਯੋਜਨਾ ਨੂੰ ਅੱਪਗ੍ਰੇਡ ਕਰੋ।",
     s_current: "ਮੌਜੂਦਾ ਯੋਜਨਾ", s_manage: "ਬਿਲਿੰਗ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ", s_upgrade: "ਯੋਜਨਾ ਅੱਪਗ੍ਰੇਡ ਕਰੋ", s_mo: "/ਮਹੀਨਾ", s_yr: "/ਸਾਲ",
     s_monthly: "ਮਾਸਿਕ", s_yearly: "ਸਾਲਾਨਾ (20% ਬਚਾਓ)", s_cancel: "ਗਾਹਕੀ ਰੱਦ ਕਰੋ", s_next_bill: "ਅਗਲੀ ਬਿਲਿੰਗ ਮਿਤੀ",
@@ -120,7 +132,7 @@ const t = {
     p_lang: "ਡਿਸਪਲੇ ਭਾਸ਼ਾ", p_lang_desc: "ਇਹ ਵਿਸ਼ਵ ਪੱਧਰ 'ਤੇ AI ਫਸਲ ਸਿਫਾਰਸ਼ਾਂ ਅਤੇ ਡੈਸ਼ਬੋਰਡ ਤੱਤਾਂ ਲਈ ਭਾਸ਼ਾ ਬਦਲਦਾ ਹੈ।",
     p_theme: "ਡੈਸ਼ਬੋਰਡ ਥੀਮ", p_theme_desc: "ਲਾਈਟ ਮੋਡ ਜਾਂ ਡਾਰਕ ਮੋਡ ਵਿੱਚੋਂ ਚੁਣੋ।",
     p_light: "ਲਾਈਟ ਮੋਡ", p_dark: "ਡਾਰਕ ਮੋਡ",
-    p_apply: "ਤਰਜੀਹਾਂ ਲਾਗੂ ਕਰੋ", p_success: "ਐਪਲੀਕੇਸ਼ਨ ਤਰਜੀਹਾਂ ਸਫਲਤਾਪੂਰਵਕ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ।", p_fail: "ਤਰਜੀਹਾਂ ਅੱਪਡੇਟ ਕਰਨ ਵਿੱਚ ਅਸਫਲ।",
+    p_apply: "ਤਰਜੀਹਾਂ ਲਾਗੂ ਕਰੋ", p_success: "ਐਪਲੀਕੇਸ਼ਨ ਤਰਜੀਹਾਂ ਸਫਲਤਾਪੂਰਵਕ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ।", p_fail: "ਅੱਪਡੇਟ ਕਰਨ ਵਿੱਚ ਅਸਫਲ।",
     loading: "ਡਾਟਾ ਲਿਆਂਦਾ ਜਾ ਰਿਹਾ ਹੈ...",
     soil_opts: { Loamy: "ਦੋਮਟ", Clay: "ਚੀਕਨੀ", Sandy: "ਰੇਤਲੀ", Black: "ਕਾਲੀ ਕਪਾਹ" },
     irr_opts: { Drip: "ਡ੍ਰਿਪ", Sprinkler: "ਸਪ੍ਰਿੰਕਲਰ", Flood: "ਹੜ੍ਹ", Rainfed: "ਬਾਰਸ਼ ਆਧਾਰਿਤ" }
@@ -238,6 +250,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
         
         .fs-prof-form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
         @media (min-width: 768px) { .fs-prof-form-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; } .fs-prof-full-width { grid-column: span 2; } }
+        @media (min-width: 1024px) { .fs-prof-form-grid-3 { grid-template-columns: repeat(3, 1fr); } }
 
         /* Buttons */
         .fs-prof-btn { display: inline-flex; justify-content: center; align-items: center; gap: 0.5rem; padding: 0.875rem 1.75rem; background: var(--prof-primary); color: #ffffff; border: none; border-radius: 1rem; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; font-family: inherit; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); }
@@ -306,6 +319,9 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
             <motion.button variants={itemVariants} onClick={() => setActiveTab("farms")} className={`fs-prof-nav-btn ${activeTab === "farms" ? "active" : ""}`}>
               <MapPin size={20} /> {txt.tab_farm}
             </motion.button>
+            <motion.button variants={itemVariants} onClick={() => setActiveTab("soil")} className={`fs-prof-nav-btn ${activeTab === "soil" ? "active" : ""}`}>
+              <TestTube size={20} /> {txt.tab_soil}
+            </motion.button>
             <motion.button variants={itemVariants} onClick={() => setActiveTab("subscription")} className={`fs-prof-nav-btn ${activeTab === "subscription" ? "active" : ""}`}>
               <CreditCard size={20} /> {txt.tab_sub}
             </motion.button>
@@ -327,6 +343,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
                 >
                   {activeTab === "details" && <UserDetailsTab txt={txt} />}
                   {activeTab === "farms" && <FarmManagementTab txt={txt} />}
+                  {activeTab === "soil" && <SoilHealthTab txt={txt} />}
                   {activeTab === "subscription" && <SubscriptionTab txt={txt} />}
                   {activeTab === "preferences" && <PreferencesTab txt={txt} isDark={isDark} setIsDark={setIsDark} />}
                 </motion.div>
@@ -340,7 +357,7 @@ export function ProfilePage({ onBack }: { onBack: () => void }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 1: USER DETAILS
+// TAB 1: USER DETAILS 
 // ─────────────────────────────────────────────────────────────────────────────
 function UserDetailsTab({ txt }: { txt: any }) {
   const queryClient = useQueryClient();
@@ -602,7 +619,7 @@ function FarmManagementTab({ txt }: { txt: any }) {
         {mode === 'list' && (
           <button 
             onClick={() => { setFarmForm(defaultFarm); setMode('add'); }} 
-            className="fs-prof-btn mx-auto sm:w-auto sm:ml-auto inline-flex"
+            className="fs-prof-btn fs-prof-btn-sm  mx-auto mt-3 sm:w-auto shrink-1 shadow-lg shadow-emerald-500/20"
           >
             <Plus size={16} /> {txt.f_add}
           </button>
@@ -701,7 +718,7 @@ function FarmManagementTab({ txt }: { txt: any }) {
                     key={farm.id} 
                     className="fs-prof-farm-item"
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-6">
                       <div className="flex items-center gap-3 min-w-0 pr-4">
                         <div className="p-3 rounded-xl shrink-0" style={{ background: 'var(--prof-primary-light)', color: 'var(--prof-primary-dark)' }}>
                           <MapPin size={24} />
@@ -722,16 +739,16 @@ function FarmManagementTab({ txt }: { txt: any }) {
                     <div className="flex-1"></div>
 
                     <div className="w-full">
-                      <div className="space-y-3 pt-4 border-t pl-2" style={{ borderColor: 'var(--prof-border)'}}>
+                      <div className="space-y-3 pt-5 border-t p-3" style={{ borderColor: 'var(--prof-border)'}}>
                         <div className="flex items-center text-sm" style={{ color: 'var(--prof-text-muted)'}}>
                           <Sprout size={18} className="text-emerald-500 mr-3 shrink-0"/> 
                           <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{farm.area}</span> {txt.f_acres}
                         </div>
-                        <div className="flex items-center text-sm pt-2" style={{ color: 'var(--prof-text-muted)'}}>
+                        <div className="flex items-center text-sm mt-4" style={{ color: 'var(--prof-text-muted)'}}>
                           <Droplets size={18} className="text-blue-500 mr-3 shrink-0"/> 
                           <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{txt.irr_opts[farm.irrigation_type as keyof typeof txt.irr_opts] || farm.irrigation_type}</span> {txt.f_irrigation}
                         </div>
-                        <div className="flex items-center text-sm pt-2 pb-4" style={{ color: 'var(--prof-text-muted)'}}>
+                        <div className="flex items-center text-sm mt-4 mb-4" style={{ color: 'var(--prof-text-muted)'}}>
                           <LayoutDashboard size={18} className="text-amber-500 mr-3 shrink-0"/> 
                           <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{txt.soil_opts[farm.soil_type as keyof typeof txt.soil_opts] || farm.soil_type}</span> {txt.f_soil_lbl}
                         </div>
@@ -983,7 +1000,154 @@ function FarmManagementTab({ txt }: { txt: any }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 3: SUBSCRIPTION (With Razorpay Integration)
+// TAB 3: SOIL HEALTH (Data Entry Tab)
+// ─────────────────────────────────────────────────────────────────────────────
+function SoilHealthTab({ txt }: { txt: any }) {
+  const queryClient = useQueryClient();
+  const { data: farms, isLoading: farmsLoading } = useFarms();
+  const primaryFarm = farms?.[0];
+
+  const [soilForm, setSoilForm] = useState({
+    soil_ph: "", nitrogen: "", phosphorus: "", potassium: "", soil_moisture: "", temperature: ""
+  });
+  
+  const [isSaving, setIsSaving] = useState(false);
+  const [msg, setMsg] = useState({ type: "", text: "" });
+
+  const submitSoilTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!primaryFarm) {
+      setMsg({ type: "error", text: txt.st_no_farm });
+      return;
+    }
+
+    const payload = {
+      farm_id: primaryFarm.id,
+      soil_ph: Number(soilForm.soil_ph),
+      nitrogen: Number(soilForm.nitrogen),
+      phosphorus: Number(soilForm.phosphorus),
+      potassium: Number(soilForm.potassium),
+      soil_moisture: Number(soilForm.soil_moisture),
+      temperature: Number(soilForm.temperature),
+    };
+
+    if (Object.values(payload).some((value) => Number.isNaN(value))) {
+      setMsg({ type: "error", text: "Please ensure all values are valid numbers." });
+      return;
+    }
+
+    setIsSaving(true); setMsg({ type: "", text: "" });
+    try {
+      await soilTestApi.create(payload);
+      queryClient.invalidateQueries({ queryKey: ['farms'] });
+      setMsg({ type: "success", text: txt.st_success });
+      setSoilForm({ soil_ph: "", nitrogen: "", phosphorus: "", potassium: "", soil_moisture: "", temperature: "" });
+    } catch {
+      setMsg({ type: "error", text: txt.st_fail });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (farmsLoading) return <LoadingSpinner txt={txt} />;
+
+  if (!primaryFarm) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center" style={{ color: 'var(--prof-text-muted)' }}>
+        <div className="w-24 h-24 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
+          <TestTube size={40} className="text-red-400 dark:text-red-500" />
+        </div>
+        <p className="text-xl font-bold mb-2" style={{ color: 'var(--prof-text-main)' }}>No Farm Detected</p>
+        <p className="text-sm max-w-sm">{txt.st_no_farm}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="fs-prof-card-header flex items-center justify-between">
+        <div>
+          <h2 className="fs-prof-card-title flex items-center gap-2">
+            <TestTube className="text-emerald-500" /> {txt.st_title}
+          </h2>
+          <p className="fs-prof-card-desc">{txt.st_desc}</p>
+        </div>
+      </div>
+      
+      <div className="fs-prof-card-body" style={{ background: 'var(--prof-input-bg)', minHeight: '100%' }}>
+        {msg.text && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={`fs-prof-alert ${msg.type}`}>
+            {msg.type === 'success' ? <CheckCircle2 size={20} /> : <Shield size={20} />} {msg.text}
+          </motion.div>
+        )}
+
+        <form onSubmit={submitSoilTest} className="max-w-4xl bg-white dark:bg-slate-900/50 p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+          
+          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg text-emerald-600 dark:text-emerald-400">
+              <MapPin size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">Recording Data For</p>
+              <h3 className="font-bold text-slate-800 dark:text-slate-200">{primaryFarm.name}</h3>
+            </div>
+          </div>
+
+          <div className="fs-prof-form-grid fs-prof-form-grid-3 mb-8">
+            <div>
+              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-purple-500"/> {txt.st_ph}</label>
+              <input type="number" step="0.1" className="fs-prof-input" required value={soilForm.soil_ph} onChange={e => setSoilForm({...soilForm, soil_ph: e.target.value})} placeholder="e.g. 6.5" />
+            </div>
+            <div>
+              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-blue-500"/> {txt.st_n}</label>
+              <input type="number" className="fs-prof-input" required value={soilForm.nitrogen} onChange={e => setSoilForm({...soilForm, nitrogen: e.target.value})} placeholder="mg/kg" />
+            </div>
+            <div>
+              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-amber-500"/> {txt.st_p}</label>
+              <input type="number" className="fs-prof-input" required value={soilForm.phosphorus} onChange={e => setSoilForm({...soilForm, phosphorus: e.target.value})} placeholder="mg/kg" />
+            </div>
+            <div>
+              <label className="fs-prof-label flex items-center gap-2"><TestTube size={16} className="text-red-500"/> {txt.st_k}</label>
+              <input type="number" className="fs-prof-input" required value={soilForm.potassium} onChange={e => setSoilForm({...soilForm, potassium: e.target.value})} placeholder="mg/kg" />
+            </div>
+            <div>
+              <label className="fs-prof-label flex items-center gap-2"><Droplets size={16} className="text-cyan-500"/> {txt.st_moist}</label>
+              <input type="number" step="0.1" className="fs-prof-input" required value={soilForm.soil_moisture} onChange={e => setSoilForm({...soilForm, soil_moisture: e.target.value})} placeholder="e.g. 45" />
+            </div>
+            <div>
+              <label className="fs-prof-label flex items-center gap-2"><Thermometer size={16} className="text-orange-500"/> {txt.st_temp}</label>
+              <input type="number" step="0.1" className="fs-prof-input" required value={soilForm.temperature} onChange={e => setSoilForm({...soilForm, temperature: e.target.value})} placeholder="e.g. 24.5" />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+  
+            <p className="text-sm text-slate-500 max-w-xl">
+              Saving a test securely updates your Dashboard analytics and AI crop predictions instantly.
+            </p>
+
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="fs-prof-btn w-full sm:w-auto flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+            >
+              {isSaving ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Save size={18} />
+              )}
+              {txt.st_save}
+            </button>
+
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 4: SUBSCRIPTION (With Razorpay Integration)
 // ─────────────────────────────────────────────────────────────────────────────
 function SubscriptionTab({ txt }: { txt: any }) {
   const [cycle, setCycle] = useState<'mo'|'yr'>('mo');
@@ -996,7 +1160,6 @@ function SubscriptionTab({ txt }: { txt: any }) {
     { name: "Enterprise", priceMo: "Custom", priceYr: "Custom", features: ["Unlimited Farms", "API Access", "Dedicated Support", "Custom Reports"] }
   ];
 
-  // Helper to dynamically load Razorpay script
   const loadRazorpay = () => {
     return new Promise((resolve) => {
       const script = document.createElement('script');
@@ -1008,38 +1171,32 @@ function SubscriptionTab({ txt }: { txt: any }) {
   };
 
   const handlePayment = async (planName: string, amountStr: string) => {
-    // If Custom plan, take them to the contact page
     if (amountStr === "Custom") {
       navigate('/contact');
       return;
     }
 
-    // If Free plan, ignore or show alert
     const numericAmount = parseInt(amountStr.replace(/[^0-9]/g, ''));
     if (!numericAmount || numericAmount === 0) {
       alert("You are already on the free plan!");
       return;
     }
 
-    // Load SDK
     const isLoaded = await loadRazorpay();
     if (!isLoaded) {
       alert('Payment system failed to load. Please check your internet connection.');
       return;
     }
 
-    // Create Options
     const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_0yx0AGbEbJaWtH', // Fallback to provided key
-      amount: (numericAmount * 100).toString(), // Razorpay expects amount in subunits (paise)
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_0yx0AGbEbJaWtH',
+      amount: (numericAmount * 100).toString(), 
       currency: 'INR',
       name: 'FasalSaathi',
       description: `${planName} Subscription (${cycle === 'mo' ? 'Monthly' : 'Yearly'})`,
-      image: 'https://i.imgur.com/3g7nmJC.png', // A generic leaf logo for the modal
+      image: 'https://i.imgur.com/3g7nmJC.png', 
       handler: function (response: any) {
-        // Success callback
         alert(`Payment Successful! Your Payment ID is: ${response.razorpay_payment_id}`);
-        // Here you would typically call your backend API to verify the payment and update the user's role
       },
       prefill: {
         name: user?.full_name || '',
@@ -1047,7 +1204,7 @@ function SubscriptionTab({ txt }: { txt: any }) {
         contact: user?.phone || ''
       },
       theme: {
-        color: '#10b981' // Matches our var(--prof-primary)
+        color: '#10b981' 
       }
     };
 
@@ -1062,7 +1219,10 @@ function SubscriptionTab({ txt }: { txt: any }) {
         <p className="fs-prof-card-desc max-w-2xl mx-auto">{txt.s_desc}</p>
       </div>
       <div className="fs-prof-card-body" style={{ background: 'var(--prof-input-bg)' }}>
-        {/* Premium Toggle */}
+        
+        {/* Billing Overview Card */}
+        
+
         <div className="fs-prof-sub-toggle-wrap">
           <div className="fs-prof-sub-toggle shadow-inner w-full max-w-sm flex">
             <button onClick={() => setCycle('mo')} className={`flex-1 fs-prof-sub-toggle-btn ${cycle === 'mo' ? 'active shadow-md' : ''}`} style={{ backgroundColor: cycle === 'mo' ? 'var(--prof-card-bg)' : 'transparent' }}>
@@ -1074,7 +1234,6 @@ function SubscriptionTab({ txt }: { txt: any }) {
           </div>
         </div>
 
-        {/* Premium Grid */}
         <div className="fs-prof-price-grid">
           {plans.map((p, i) => (
             <div key={i} className={`fs-prof-price-card ${p.highlight ? 'premium' : ''}`}>
@@ -1117,7 +1276,7 @@ function SubscriptionTab({ txt }: { txt: any }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 4: PREFERENCES
+// TAB 5: PREFERENCES
 // ─────────────────────────────────────────────────────────────────────────────
 function PreferencesTab({ txt, isDark, setIsDark }: { txt: any, isDark: boolean, setIsDark: (val: boolean) => void }) {
   const queryClient = useQueryClient();
