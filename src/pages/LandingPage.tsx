@@ -275,7 +275,6 @@ export function LandingPage() {
     { icon: TrendingUp, title: text.feat2Title, desc: text.feat2Desc, theme: "orange" },
     { icon: Leaf, title: text.feat3Title, desc: text.feat3Desc, theme: "green" },
     { icon: Shield, title: text.feat4Title, desc: text.feat4Desc, theme: "red" },
-    { icon: BarChart3, title: text.feat5Title, desc: text.feat5Desc, theme: "purple" },
     { icon: Smartphone, title: text.feat6Title, desc: text.feat6Desc, theme: "teal" },
   ];
 

@@ -6,10 +6,10 @@ import { useLanguage } from "../../hooks/useLanguage"; // Adjust import path as 
 
 // ─── Navbar Translations ───
 const navT = {
-  en: { features: "Features", pricing: "Pricing", guidelines: "Guidelines", contact: "Contact", more: "More", terms: "Terms", privacy: "Privacy", signIn: "Sign In", getStarted: "Get Started Free" },
-  hi: { features: "सुविधाएं", pricing: "मूल्य निर्धारण", guidelines: "दिशानिर्देश", contact: "संपर्क", more: "अधिक", terms: "शर्तें", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मुफ्त शुरू करें" },
-  mr: { features: "वैशिष्ट्ये", pricing: "किंमत", guidelines: "मार्गदर्शक तत्त्वे", contact: "संपर्क", more: "अधिक", terms: "अटी", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मोफत सुरू करा" },
-  pa: { features: "ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ", pricing: "ਕੀਮਤ", guidelines: "ਦਿਸ਼ਾ-ਨਿਰਦੇਸ਼", contact: "ਸੰਪਰਕ", more: "ਹੋਰ", terms: "ਸ਼ਰਤਾਂ", privacy: "ਗੋਪਨੀਯਤਾ", signIn: "ਸਾਈਨ ਇਨ", getStarted: "ਮੁਫਤ ਸ਼ੁਰੂ ਕਰੋ" },
+  en: { features: "Features", pricing: "Pricing", guidelines: "Guidelines", breedAnalysis: "Breed Analysis", yieldPrediction: "Yield Prediction", contact: "Contact", more: "More", terms: "Terms", privacy: "Privacy", signIn: "Sign In", getStarted: "Get Started Free" },
+  hi: { features: "सुविधाएं", pricing: "मूल्य निर्धारण", guidelines: "दिशानिर्देश", breedAnalysis: "नस्ल की पहचान", yieldPrediction: "उत्पादन का अनुमान", contact: "संपर्क", more: "अधिक", terms: "शर्तें", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मुफ्त शुरू करें" },
+  mr: { features: "वैशिष्ट्ये", pricing: "किमत", guidelines: "मार्गदर्शक तत्त्वे", breedAnalysis: "जातीची ओळख", yieldPrediction: "उत्पादन अंदाज", contact: "संपर्क", more: "अधिक", terms: "अटी", privacy: "गोपनीयता", signIn: "साइन इन", getStarted: "मोफत सुरू करा" },
+  pa: { features: "ਵਿਸ਼ੇਸ਼ਤਾਵਾਂ", pricing: "ਕੀਮਤ", guidelines: "ਦਿਸ਼ਾ-ਨਿਰਦੇਸ਼", breedAnalysis: "ਨਸਲ ਦੀ ਪਛਾਣ", yieldPrediction: "ਪੈਦਾਵਾਰ ਪੂਰਵ ਅਨੁਮਾਨ", contact: "ਸੰਪਰਕ", more: "ਹੋਰ", terms: "ਸ਼ਰਤਾਂ", privacy: "ਗੋਪਨੀਯਤਾ", signIn: "ਸਾਈਨ ਇਨ", getStarted: "ਮੁਫਤ ਸ਼ੁਰੂ ਕਰੋ" },
 };
 
 export function PublicNavbar() {
