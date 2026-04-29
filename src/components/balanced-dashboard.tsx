@@ -25,6 +25,7 @@ import { DashboardOverview, User, FarmCropCycle, Farm } from "../types/api";
 import { useLanguage, SpeakerButton } from "./language-context";
 import { WeatherCard } from "./weather-card";
 import { Badge } from "./ui/badge";
+import { KisanNewsFeed } from "./kisan-news-feed";
 
 // ─── PREMIUM SHARED STYLES (Deep Forest Green Theme) ───
 const DashboardStyles = () => (
@@ -272,6 +273,8 @@ export function BalancedDashboard({ onNavigate }: { onNavigate?: (page: string) 
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="mb-8">
                   <WeatherCard weather={overview?.weather ?? undefined} />
                 </motion.div>
+
+                <KisanNewsFeed />
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
                   

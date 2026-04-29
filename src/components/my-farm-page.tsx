@@ -26,7 +26,7 @@ type DisplayCrop = ManagedCrop | FarmCropCycle;
 
 const isManagedCrop = (crop: DisplayCrop): crop is ManagedCrop => "name" in crop;
 
-const getCropStatus = (crop: DisplayCrop) => crop.status || "active";
+const getCropStatus = (crop: DisplayCrop) => (crop.status || "active").toLowerCase();
 
 const getCropDisplayName = (crop: DisplayCrop) =>
   isManagedCrop(crop)
@@ -66,6 +66,18 @@ const getCropProgress = (crop: DisplayCrop) => {
   }
 
   return Math.min(100, Math.max(0, ((Date.now() - start) / (end - start)) * 100));
+};
+
+const mergeCrops = (primary: DisplayCrop[], fallback: DisplayCrop[]) => {
+  const seen = new Set<string>();
+  return [...primary, ...fallback].filter((crop) => {
+    const key = `${isManagedCrop(crop) ? "managed" : "cycle"}-${crop.id}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 };
 
 const FarmStyles = () => (
@@ -229,17 +241,17 @@ export function MyFarmPage() {
   }, [selectedFarm]);
 
   const displayedCrops = useMemo<DisplayCrop[]>(
-    () => (managedCrops.length ? managedCrops : selectedFarm?.crop_cycles || []),
+    () => mergeCrops(managedCrops, mergeCrops(selectedFarm?.managed_crops || [], selectedFarm?.crop_cycles || [])),
     [managedCrops, selectedFarm],
   );
 
   const activeCrops = useMemo(
-    () => displayedCrops.filter((crop) => getCropStatus(crop).toLowerCase() === "active"),
+    () => displayedCrops.filter((crop) => getCropStatus(crop) === "active"),
     [displayedCrops],
   );
 
   const cropHistory = useMemo(
-    () => displayedCrops.filter((crop) => getCropStatus(crop).toLowerCase() === "completed"),
+    () => displayedCrops.filter((crop) => getCropStatus(crop) === "completed"),
     [displayedCrops],
   );
 
@@ -289,7 +301,8 @@ export function MyFarmPage() {
                 {farms.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
                     {farms.map((farm) => {
-                      const activeCount = (farm.crop_cycles || []).filter((crop) => crop.status === "active").length;
+                      const farmCrops = mergeCrops(farm.managed_crops || [], farm.crop_cycles || []);
+                      const activeCount = farmCrops.filter((crop) => getCropStatus(crop) === "active").length;
 
                       return (
                         <button
@@ -526,11 +539,32 @@ export function MyFarmPage() {
                                           </div>
 
                                           {isManagedCrop(crop) && (
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 px-4">
-                                              <InfoRow icon={<Target size={16} />} label="Risk Level" value={crop.risk_level || "-"} />
-                                              <InfoRow icon={<Leaf size={16} />} label="Variety" value={crop.variety || "-"} />
-                                              <InfoRow icon={<TrendingUp size={16} />} label="Expected Yield" value={getCropYieldLabel(crop)} />
-                                            </div>
+                                            <>
+                                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 px-4">
+                                                <InfoRow icon={<Target size={16} />} label="Risk Level" value={crop.risk_level || "-"} />
+                                                <InfoRow icon={<Leaf size={16} />} label="Variety" value={crop.variety || "-"} />
+                                                <InfoRow icon={<TrendingUp size={16} />} label="Expected Yield" value={getCropYieldLabel(crop)} />
+                                                <InfoRow icon={<Calendar size={16} />} label="Duration" value={`${Number(crop.duration) || 0} days`} />
+                                              </div>
+
+                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 px-4">
+                                                <InfoRow icon={<TrendingDown size={16} />} label="Estimated Cost" value={`Rs. ${Number(crop.estimated_cost || 0).toLocaleString("en-IN")}`} />
+                                                <InfoRow icon={<TrendingUp size={16} />} label="Estimated Profit" value={`Rs. ${Number(crop.estimated_profit || 0).toLocaleString("en-IN")}`} />
+                                                <InfoRow icon={<Droplets size={16} />} label="Water Need" value={crop.water_requirement || "-"} />
+                                                <InfoRow icon={<TestTube size={16} />} label="Soil Preference" value={crop.soil_preference || "-"} />
+                                              </div>
+
+                                              {(crop.description || crop.notes) && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 px-4">
+                                                  {crop.description && (
+                                                    <DetailTextBlock label="Description" value={crop.description} />
+                                                  )}
+                                                  {crop.notes && (
+                                                    <DetailTextBlock label="Notes" value={crop.notes} />
+                                                  )}
+                                                </div>
+                                              )}
+                                            </>
                                           )}
 
                                           <div className="bg-white p-4 ml-4 mr-3 mb-3 rounded-xl border border-slate-200 shadow-sm">
@@ -634,6 +668,15 @@ function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value
       <p className="font-bold text-sm text-slate-900 truncate mx-auto" title={value}>
         {value}
       </p>
+    </div>
+  );
+}
+
+function DetailTextBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">{label}</p>
+      <p className="text-sm font-semibold text-slate-800 leading-relaxed break-words">{value}</p>
     </div>
   );
 }

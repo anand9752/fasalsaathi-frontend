@@ -23,6 +23,7 @@ export interface Farm {
     crops?: Crop[];
     soil_tests?: SoilTest[];
     crop_cycles?: FarmCropCycle[];
+    managed_crops?: ManagedCrop[];
 }
 
 export interface Crop {
@@ -370,6 +371,23 @@ export interface DashboardOverview {
     weather?: WeatherCurrentResponse | null;
     market_alert?: MarketPrice | null;
     recommendation_preview?: CropRecommendation[];
+}
+
+export interface KisanNewsArticle {
+    title: string;
+    description?: string | null;
+    link: string;
+    image_url?: string | null;
+    pubDate?: string | null;
+    tags: string[];
+}
+
+export interface KisanNewsResponse {
+    articles: KisanNewsArticle[];
+    source: "live" | "cache" | "none";
+    is_stale: boolean;
+    refreshed_at?: string | null;
+    message: string;
 }
 
 export type InventoryCategory = 'fertilizer' | 'seeds' | 'pesticide' | 'equipment' | 'other';

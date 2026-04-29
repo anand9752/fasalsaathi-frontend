@@ -5,7 +5,7 @@ import axios, {
     InternalAxiosRequestConfig,
     AxiosRequestConfig
 } from 'axios';
-import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, ManagedCrop, ManagedCropCreatePayload, ManagedCropUpdatePayload, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
+import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, KisanNewsResponse, ManagedCrop, ManagedCropCreatePayload, ManagedCropUpdatePayload, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
 
 // Error interface for backend responses
 interface ApiError {
@@ -280,6 +280,16 @@ export const dashboardApi = {
         apiClient.get<DashboardOverview>('/dashboard/overview').then(response => response.data)
 };
 
+export const kisanNewsApi = {
+    getNews: (params?: { forceRefresh?: boolean; limit?: number }) =>
+        apiClient.get<KisanNewsResponse>('/kisan-news', {
+            params: {
+                force_refresh: params?.forceRefresh,
+                limit: params?.limit,
+            }
+        }).then(response => response.data)
+};
+
 export const inventoryApi = {
     /** List all items; optionally filter by category, search term, or low-stock flag */
     list: (params?: { category?: string; low_stock_only?: boolean; search?: string }) =>
@@ -334,6 +344,7 @@ export default {
     weather: weatherApi,
     market: marketApi,
     dashboard: dashboardApi,
+    kisanNews: kisanNewsApi,
     inventory: inventoryApi,
     notifications: notificationApi,
     askSathi: askSathiApi,
