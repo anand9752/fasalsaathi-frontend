@@ -25,7 +25,13 @@ import { PreciseYieldPrediction } from "./components/precise-yield-prediction";
 import { CropRecommendationsPage } from "./components/crop-recommendations-page";
 import { InventoryPage } from "./components/inventory-page";
 import { AIChatAssistant } from "./components/ai-chat";
+import { AskSathiChat } from "./components/AskSathiChat";
+import { BreedAnalysisPage } from "./components/breed-analysis";
+import { YieldPredictionTool } from "./components/yield-prediction-tool";
 import { LanguageProvider, useLanguage } from "./components/language-context";
+import { NotificationProvider } from "./context/NotificationContext";
+import { NotificationBell } from "./components/NotificationBell";
+import { Toaster } from "sonner";
 import { authApi } from "./services/api";
 import { User as ApiUser } from "./types/api";
 import {
@@ -66,8 +72,9 @@ type Page =
   | "yield-prediction"
   | "crop-recommendations"
   | "profile"
-  | "inventory";
-type Language = "hi" | "en" | "mr";
+  | "inventory"
+  | "breed-analysis";
+type Language = "hi" | "en" | "mr" | "pa";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Root — sets up routes (BrowserRouter is provided by main.tsx)
@@ -86,6 +93,7 @@ export default function App() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/support" element={<SupportPage />} />
+        <Route path="/breed-analysis" element={<BreedAnalysisPage />} />
 
         {/* Authenticated app — lives at /app */}
         <Route path="/app" element={<AuthenticatedApp />} />
@@ -134,7 +142,7 @@ function AuthenticatedApp() {
 
   const [activeVariation, setActiveVariation] = useState(1);
   const [isChatOpen, setIsChatOpen] = useState(false);
-
+  const [isAskSathiOpen, setIsAskSathiOpen] = useState(false);
   const handleNavigation = (page: Page) => {
     setCurrentPage(page);
   };
@@ -155,14 +163,19 @@ function AuthenticatedApp() {
 
   return (
     <LanguageProvider>
-      <AppContent
-        currentPage={currentPage}
-        activeVariation={activeVariation}
-        setActiveVariation={setActiveVariation}
-        isChatOpen={isChatOpen}
-        setIsChatOpen={setIsChatOpen}
-        handleNavigation={handleNavigation}
-      />
+      <NotificationProvider>
+        <AppContent
+          currentPage={currentPage}
+          activeVariation={activeVariation}
+          setActiveVariation={setActiveVariation}
+          isChatOpen={isChatOpen}
+          setIsChatOpen={setIsChatOpen}
+          isAskSathiOpen={isAskSathiOpen}
+          setIsAskSathiOpen={setIsAskSathiOpen}
+          handleNavigation={handleNavigation}
+        />
+        <Toaster position="bottom-right" richColors />
+      </NotificationProvider>
     </LanguageProvider>
   );
 }
@@ -176,6 +189,8 @@ function AppContent({
   setActiveVariation,
   isChatOpen,
   setIsChatOpen,
+  isAskSathiOpen,
+  setIsAskSathiOpen,
   handleNavigation,
 }: {
   currentPage: Page;
@@ -183,6 +198,8 @@ function AppContent({
   setActiveVariation: (variation: number) => void;
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
+  isAskSathiOpen: boolean;
+  setIsAskSathiOpen: (open: boolean) => void;
   handleNavigation: (page: Page) => void;
 }) {
   const { t } = useLanguage();
@@ -236,12 +253,14 @@ function AppContent({
         return <MyFarmPage />;
       case "yield-prediction":
         return (
-          <PreciseYieldPrediction onBack={() => handleNavigation("dashboard")} />
+          <YieldPredictionTool onBack={() => handleNavigation("dashboard")} />
         );
       case "crop-recommendations":
         return <CropRecommendationsPage />;
       case "inventory":
         return <InventoryPage />;
+      case "breed-analysis":
+        return <BreedAnalysisPage />;
 
       case "dashboard":
       default:
@@ -311,7 +330,11 @@ function AppContent({
             onNavigate={handleNavigation}
             currentUser={currentUser}
             onLogout={handleLogout}
+            onOpenAskSathi={() => setIsAskSathiOpen(true)}
+            isChatOpen={isChatOpen}
+            setIsChatOpen={setIsChatOpen}
           />
+          {isDashboard && <WeatherHeader />}
         </>
       )}
 
@@ -321,6 +344,13 @@ function AppContent({
         isOpen={isChatOpen}
         onToggle={() => setIsChatOpen(!isChatOpen)}
       />
+
+      <AskSathiChat
+        isOpen={isAskSathiOpen}
+        onClose={() => setIsAskSathiOpen(false)}
+      />
+
+      <NotificationBell />
 
       {!isProfilePage && (
         <footer className="bg-white border-t border-gray-200 py-6 mt-12">
@@ -342,14 +372,19 @@ function TopNavigationWithRouter({
   onNavigate,
   currentUser,
   onLogout,
+  onOpenAskSathi,
+  isChatOpen,
+  setIsChatOpen,
 }: {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   currentUser?: ApiUser | null;
   onLogout: () => void;
+  onOpenAskSathi: () => void;
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
 }) {
   const { language, setLanguage, t } = useLanguage();
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const getLanguageDisplay = (lang: Language) => {
     switch (lang) {
@@ -359,6 +394,8 @@ function TopNavigationWithRouter({
         return "English";
       case "mr":
         return "मराठी (Marathi)";
+      case "pa":
+        return "ਪੰਜਾਬੀ (Punjabi)";
       default:
         return "हिंदी (Hindi)";
     }
@@ -448,7 +485,11 @@ function TopNavigationWithRouter({
               <DropdownMenuItem onClick={() => onNavigate("yield-prediction")}>
                 <Target className="w-4 h-4 mr-2" />
                 {t("yield-prediction")}
-                </DropdownMenuItem>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onNavigate("breed-analysis")}>
+                <Target className="w-4 h-4 mr-2" />
+                {t("breed-analysis")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -456,7 +497,7 @@ function TopNavigationWithRouter({
             variant="ghost"
             size="sm"
             className="bg-accent/20 hover:bg-accent/30 text-primary font-medium"
-            onClick={() => setIsChatOpen(true)}
+            onClick={onOpenAskSathi}
           >
             <MessageCircle className="w-4 h-4 mr-2" />
             {t("ask-saathi")}
@@ -482,6 +523,9 @@ function TopNavigationWithRouter({
               <DropdownMenuItem onClick={() => setLanguage("mr")}>
                 🇮🇳 मराठी (Marathi)
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLanguage("pa")}>
+                🇮🇳 ਪੰਜਾਬੀ (Punjabi)
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -497,17 +541,13 @@ function TopNavigationWithRouter({
               <DropdownMenuItem className="fs-drop-item" onClick={() => onNavigate("profile")}>
                   <User className="w-4 h-4 mr-2 opacity-80" /> {t("profile")}
                 </DropdownMenuItem>
+              <DropdownMenuItem>{t("settings")}</DropdownMenuItem>
               <DropdownMenuItem onClick={onLogout}>
                 {t("logout")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
-        <AIChatAssistant
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
-        />
       </div>
     </nav>
   );

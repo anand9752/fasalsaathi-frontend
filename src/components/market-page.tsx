@@ -12,12 +12,32 @@ import {
   ChevronRight,
   Wheat,
   Activity,
-  AlertCircle
+  AlertCircle,
+  ArrowRight
 } from "lucide-react";
 
 import { marketApi } from "../services/api";
 import { MarketPrice } from "../types/api";
 import { Badge } from "./ui/badge";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -27,6 +47,14 @@ export function MarketPage() {
   const [selectedCrop, setSelectedCrop] = useState<MarketPrice | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "price" | "change">("change");
   
+  // Alert Dialog State
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+  const [alertTargetPrice, setAlertTargetPrice] = useState("");
+  const [alertCondition, setAlertCondition] = useState("above");
+  const [isCreatingAlert, setIsCreatingAlert] = useState(false);
+  const [activeAlerts, setActiveAlerts] = useState<any[]>([]);
+  const [isAlertListOpen, setIsAlertListOpen] = useState(false);
+
   // Filters
   const [stateFilter, setStateFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -63,8 +91,18 @@ export function MarketPage() {
     }
   };
 
+  const fetchAlerts = async () => {
+    try {
+      const alerts = await marketApi.getAlerts();
+      setActiveAlerts(alerts);
+    } catch (err) {
+      console.error("Failed to fetch alerts", err);
+    }
+  };
+
   useEffect(() => {
     void fetchPrices(activeFilters);
+    void fetchAlerts();
   }, [activeFilters]);
 
   // Reset pagination when filters, search, or sort change
@@ -77,6 +115,37 @@ export function MarketPage() {
     const updatedCrop = prices.find((crop) => crop.id === selectedCrop.id);
     setSelectedCrop(updatedCrop || null);
   }, [prices, selectedCrop]);
+
+  const handleCreateAlert = async () => {
+    if (!selectedCrop || !alertTargetPrice) return;
+    
+    setIsCreatingAlert(true);
+    try {
+      await marketApi.createAlert({
+        commodity: selectedCrop.crop_name,
+        target_price: parseFloat(alertTargetPrice),
+        condition: alertCondition
+      });
+      toast.success(`Alert set for ${selectedCrop.crop_name}`);
+      setIsAlertDialogOpen(false);
+      setAlertTargetPrice("");
+      fetchAlerts();
+    } catch (err) {
+      toast.error("Failed to create alert. Please try again.");
+    } finally {
+      setIsCreatingAlert(false);
+    }
+  };
+
+  const handleDeleteAlert = async (alertId: number) => {
+    try {
+      await marketApi.deleteAlert(alertId);
+      toast.success("Alert deleted");
+      fetchAlerts();
+    } catch (err) {
+      toast.error("Failed to delete alert");
+    }
+  };
 
   const filteredLocalCrops = useMemo(() => {
     const normalizedQuery = searchQuery.toLowerCase();
@@ -213,8 +282,8 @@ export function MarketPage() {
               <button onClick={() => void fetchPrices(activeFilters)} disabled={isLoading} className="fs-mk-btn fs-mk-btn-outline flex-1 md:flex-none">
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} /> {isLoading ? "Refreshing" : "Refresh"}
               </button>
-              <button className="fs-mk-btn fs-mk-btn-primary flex-1 md:flex-none">
-                <Bell className="w-4 h-4" /> Alerts
+              <button onClick={() => setIsAlertListOpen(true)} className="fs-mk-btn fs-mk-btn-primary flex-1 md:flex-none">
+                <Bell className="w-4 h-4" /> {activeAlerts.length > 0 ? `My Alerts (${activeAlerts.length})` : "Alerts"}
               </button>
             </div>
           </div>
@@ -481,7 +550,7 @@ export function MarketPage() {
                         </div>
                       </div>
 
-                      <button className="fs-mk-btn fs-mk-btn-primary w-full mt-8 py-3">
+                      <button onClick={() => setIsAlertDialogOpen(true)} className="fs-mk-btn fs-mk-btn-primary w-full mt-8 py-3">
                         <Bell size={18}/> Create Price Alert
                       </button>
 
@@ -498,6 +567,99 @@ export function MarketPage() {
 
           </div>
         </div>
+
+        {/* ─── DIALOGS ─── */}
+        
+        {/* Create Alert Dialog */}
+        <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-emerald-700">
+                <Bell className="w-5 h-5" /> Set Price Alert
+              </DialogTitle>
+              <DialogDescription>
+                We'll notify you when <strong>{selectedCrop?.crop_name_hindi || selectedCrop?.crop_name}</strong> hits your target price.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-600">Notify me when price goes:</label>
+                <Select value={alertCondition} onValueChange={setAlertCondition}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="above">Above Target</SelectItem>
+                    <SelectItem value="below">Below Target</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-600">Target Price (₹ per Quintal):</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
+                  <Input 
+                    type="number" 
+                    placeholder="Enter target price" 
+                    className="pl-8"
+                    value={alertTargetPrice}
+                    onChange={(e) => setAlertTargetPrice(e.target.value)}
+                  />
+                </div>
+                <p className="text-[10px] text-emerald-600 font-medium">Current Market Price: ₹{selectedCrop?.price.toLocaleString()}</p>
+              </div>
+            </div>
+            <DialogFooter className="sm:justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsAlertDialogOpen(false)}>Cancel</Button>
+              <Button 
+                onClick={handleCreateAlert} 
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={isCreatingAlert || !alertTargetPrice}
+              >
+                {isCreatingAlert ? "Setting Alert..." : "Set Alert"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Alert List Dialog */}
+        <Dialog open={isAlertListOpen} onOpenChange={setIsAlertListOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-600" /> Active Price Alerts
+              </DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 py-4">
+              {activeAlerts.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 font-medium">You have no active alerts.</div>
+              ) : (
+                activeAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                    <div>
+                      <h4 className="font-bold text-emerald-900">{alert.commodity}</h4>
+                      <p className="text-xs font-medium text-emerald-700 capitalize">
+                        Notify if {alert.condition} ₹{alert.target_price.toLocaleString()}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDeleteAlert(alert.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+            <DialogFooter>
+              <Button className="w-full" onClick={() => setIsAlertListOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </>
   );

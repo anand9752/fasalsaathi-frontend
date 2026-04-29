@@ -275,7 +275,6 @@ export function LandingPage() {
     { icon: TrendingUp, title: text.feat2Title, desc: text.feat2Desc, theme: "orange" },
     { icon: Leaf, title: text.feat3Title, desc: text.feat3Desc, theme: "green" },
     { icon: Shield, title: text.feat4Title, desc: text.feat4Desc, theme: "red" },
-    { icon: BarChart3, title: text.feat5Title, desc: text.feat5Desc, theme: "purple" },
     { icon: Smartphone, title: text.feat6Title, desc: text.feat6Desc, theme: "teal" },
   ];
 
@@ -377,7 +376,7 @@ export function LandingPage() {
         .fs-lp-l-3 { left: 65%; width: 18px; height: 18px; animation-duration: 14s; animation-delay: 1s; background: linear-gradient(135deg, #facc15, #ca8a04); }
         .fs-lp-l-4 { left: 85%; width: 12px; height: 12px; animation-duration: 18s; animation-delay: 5s; }
 
-        .fs-lp-noise { position: absolute; inset: 0; z-index: 3; background-image: url('https://grainy-gradients.vercel.app/noise.svg'); opacity: 0.15; mix-blend-mode: overlay; pointer-events: none; }
+        .fs-lp-noise { position: absolute; inset: 0; z-index: 3; background-image: url('/noise.svg'); opacity: 0.15; mix-blend-mode: overlay; pointer-events: none; }
 
         .fs-lp-hero-grid { display: grid; grid-template-columns: 1fr; gap: 4rem; align-items: center; }
         @media (min-width: 1024px) { .fs-lp-hero-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } }

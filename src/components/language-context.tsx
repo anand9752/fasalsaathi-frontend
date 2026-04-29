@@ -2,7 +2,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 import { Volume2 } from 'lucide-react';
 import { Button } from "./ui/button";
 
-type Language = 'hi' | 'en' | 'mr';
+type Language = 'hi' | 'en' | 'mr' | 'pa';
 
 interface LanguageContextType {
   language: Language;
@@ -25,6 +25,7 @@ const translations = {
     'yield-prediction': 'उत्पादन पूर्वानुमान',
     'more': 'और विकल्प',
     'plant-analysis': 'पौधा विश्लेषण',
+    'breed-analysis': 'नस्ल की पहचान',
     
     // Dashboard
     'good-evening': 'शुभ संध्या',
@@ -153,6 +154,7 @@ const translations = {
     'yield-prediction': 'Yield Prediction',
     'more': 'More',
     'plant-analysis': 'Plant Analysis',
+    'breed-analysis': 'Breed Analysis',
     
     // Dashboard
     'good-evening': 'Good Evening',
@@ -281,6 +283,7 @@ const translations = {
     'yield-prediction': 'उत्पादन अंदाज',
     'more': 'आणखी पर्याय',
     'plant-analysis': 'वनस्पती विश्लेषण',
+    'breed-analysis': 'जातीची ओळख',
     
     // Dashboard
     'good-evening': 'शुभ संध्याकाळ',
@@ -394,6 +397,53 @@ const translations = {
     'profile': 'प्रोफाइल',
     'settings': 'सेटिंग्स',
     'logout': 'लॉग आउट',
+  },
+  pa: {
+    // Navigation
+    'dashboard': 'ਡੈਸ਼ਬੋਰਡ',
+    'my-farm': 'ਮੇਰਾ ਖੇਤ',
+    'calendar': 'ਕੈਲੰਡਰ',
+    'market-prices': 'ਬਾਜ਼ਾਰ ਭਾਅ',
+    'analyze-plant': 'ਪੌਦਾ ਵਿਸ਼ਲੇਸ਼ਣ',
+    'ask-saathi': 'ਸਾਥੀ ਨੂੰ ਪੁੱਛੋ',
+    'crop-recommendations': 'ਫਸਲ ਸੁਝਾਅ',
+    'inventory': 'ਇਨਵੈਂਟਰੀ',
+    'yield-prediction': 'ਪੈਦਾਵਾਰ ਪੂਰਵ ਅਨੁਮਾਨ',
+    'more': 'ਹੋਰ ਵਿਕਲਪ',
+    'plant-analysis': 'ਪੌਦਾ ਵਿਸ਼ਲੇਸ਼ਣ',
+    'breed-analysis': 'ਨਸਲ ਦੀ ਪਛਾਣ',
+    
+    // Dashboard
+    'good-evening': 'ਸ਼ੁਭ ਸ਼ਾਮ',
+    'tonight-priority': 'ਅੱਜ ਰਾਤ ਦੀ ਪਹਿਲ',
+    'live-farm-vitals': 'ਲਾਈਵ ਫਾਰਮ ਸਿਹਤ',
+    'yield-forecast': 'ਪੈਦਾਵਾਰ ਪੂਰਵ ਅਨੁਮਾਨ',
+    'market-price-alert': 'ਬਾਜ਼ਾਰ ਭਾਅ ਅਲਰਟ',
+    'soil-moisture': 'ਮਿੱਟੀ ਵਿੱਚ ਨਮੀ',
+    'soil-ph': 'ਮਿੱਟੀ pH',
+    'high-priority': 'ਉੱਚ ਪਹਿਲ',
+    'good-condition': 'ਚੰਗੀ ਹਾਲਤ',
+    'ideal-level': 'ਆਦਰਸ਼ ਪੱਧਰ',
+    'dashboard-layout-variations': 'ਡੈਸ਼ਬੋਰਡ ਲੇਆਉਟ ਵਿਕਲਪ',
+    'choose-preferred-layout': 'ਆਪਣਾ ਪਸੰਦੀਦਾ ਡੈਸ਼ਬੋਰਡ ਲੇਆਉਟ ਚੁਣੋ',
+    'balanced-grid': 'ਸੰਤੁਲਿਤ ਗਰਿੱਡ',
+    'feed-style': 'ਫੀਡ ਸਟਾਈਲ',
+    'data-centric': 'ਡਾਟਾ ਕੇਂਦਰਿਤ',
+    'active': 'ਸਰਗਰਮ',
+
+    // Common Actions
+    'view-details': 'ਵੇਰਵੇ ਦੇਖੋ',
+    'close': 'ਬੰਦ ਕਰੋ',
+    'save': 'ਸੇਵ ਕਰੋ',
+    'cancel': 'ਰੱਦ ਕਰੋ',
+    'back': 'ਵਾਪਸ',
+    'next': 'ਅੱਗੇ',
+    'submit': 'ਜਮ੍ਹਾਂ ਕਰੋ',
+    'copyright-text': '© 2024 FasalSaathi - ਭਾਰਤੀ ਖੇਤੀ ਲਈ AI-ਸੰਚਾਲਿਤ ਫਾਰਮਿੰਗ ਸਲਾਹਕਾਰ',
+    'tagline': 'ਕਿਸਾਨਾਂ ਨੂੰ ਤਕਨਾਲੋਜੀ ਨਾਲ ਸ਼ਕਤੀਸ਼ਾਲੀ ਬਣਾਉਣਾ',
+    'profile': 'ਪ੍ਰੋਫਾਈਲ',
+    'settings': 'ਸੈਟਿੰਗਾਂ',
+    'logout': 'ਲੌਗ ਆਉਟ',
   }
 };
 
@@ -409,7 +459,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const speak = (text: string) => {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
+      utterance.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : language === 'pa' ? 'pa-IN' : 'en-IN';
       speechSynthesis.speak(utterance);
     }
   };

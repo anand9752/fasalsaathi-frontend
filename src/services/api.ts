@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
-import axios, { 
-    AxiosError, 
-    AxiosResponse, 
+import axios, {
+    AxiosError,
+    AxiosResponse,
     InternalAxiosRequestConfig,
     AxiosRequestConfig
 } from 'axios';
-import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
+import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, ManagedCrop, ManagedCropCreatePayload, ManagedCropUpdatePayload, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
 
 // Error interface for backend responses
 interface ApiError {
@@ -83,24 +83,39 @@ apiClient.interceptors.response.use(
         }
 
         // Handle other errors
-        const errorMessage = error.response?.data?.detail || error.message;
+        let errorMessage = error.response?.data?.detail || error.message;
+
+        // Handle FastAPI validation errors (422) which return detail as an array
+        if (Array.isArray(error.response?.data?.detail)) {
+            errorMessage = error.response.data.detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+        } else if (typeof errorMessage === 'object' && errorMessage !== null) {
+            errorMessage = JSON.stringify(errorMessage);
+        }
+
         console.error('API Error:', errorMessage);
+
+        // Normalize both the message and the detail field to prevent React rendering issues
+        error.message = errorMessage;
+        if (error.response?.data) {
+            error.response.data.detail = errorMessage;
+        }
+
         return Promise.reject(error);
     }
 );
 
 // Auth API
 export const authApi = {
-    register: (userData: RegisterPayload) => 
+    register: (userData: RegisterPayload) =>
         apiClient.post<User>('/auth/register', userData).then(response => response.data),
-    
+
     login: (email: string, password: string) =>
-        apiClient.post<{ access_token: string, token_type: string }>('/auth/token', 
+        apiClient.post<{ access_token: string, token_type: string }>('/auth/token',
             new URLSearchParams({ username: email, password }),
             { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
         ).then(response => response.data),
-    
-    getCurrentUser: () => 
+
+    getCurrentUser: () =>
         apiClient.get<User>('/auth/me').then(response => response.data),
 
     updateCurrentUser: (userData: Partial<User>) =>
@@ -109,22 +124,22 @@ export const authApi = {
 
 // Farm API
 export const farmApi = {
-    getAllFarms: () => 
+    getAllFarms: () =>
         apiClient.get<Farm[]>('/farms').then(response => response.data),
-    
-    getFarmById: (id: number) => 
+
+    getFarmById: (id: number) =>
         apiClient.get<Farm>(`/farms/${id}`).then(response => response.data),
-    
-    createFarm: (farmData: Partial<Farm> & { initial_crop_id?: number; initial_crop_season?: string; initial_crop_year?: number }) => 
+
+    createFarm: (farmData: Partial<Farm> & { initial_crop_id?: number; initial_crop_season?: string; initial_crop_year?: number }) =>
         apiClient.post<Farm>('/farms', farmData).then(response => response.data),
-    
-    updateFarm: (id: number, farmData: Partial<Farm>) => 
+
+    updateFarm: (id: number, farmData: Partial<Farm>) =>
         apiClient.put<Farm>(`/farms/${id}`, farmData).then(response => response.data),
-    
-    deleteFarm: (id: number) => 
+
+    deleteFarm: (id: number) =>
         apiClient.delete(`/farms/${id}`).then(response => response.data),
-    
-    getFarmSoilTests: (farmId: number) => 
+
+    getFarmSoilTests: (farmId: number) =>
         apiClient.get<SoilTest[]>(`/farms/${farmId}/soil-tests`).then(response => response.data)
 };
 
@@ -159,7 +174,7 @@ export const cropApi = {
 
     getCropDetail: (cropName: string) =>
         apiClient.get<CropDetailResponse>('/crop-detail', { params: { crop_name: cropName } }).then(response => response.data),
-    
+
     predictYield: (params: {
         crop_id: number,
         area: number,
@@ -169,26 +184,30 @@ export const cropApi = {
     }) => apiClient.post('/crops/yield-prediction', params).then(response => response.data),
 
     getAllCrops: () =>
-        apiClient.get<Crop[]>('/crops').then(response => response.data), // <--- ADD THE COMMA HERE!
+        apiClient.get<Crop[]>('/crops').then(response => response.data),
 
     getManagedCrops: (farmId?: number) =>
-        apiClient.get<FarmCropCycle[]>('/crops/managed', { 
-            params: farmId ? { farm_id: farmId } : {} 
-        }).then(response => response.data)
+        apiClient.get<ManagedCrop[]>('/crops/managed', { params: farmId ? { farm_id: farmId } : undefined }).then(response => response.data),
+
+    createManagedCrop: (payload: ManagedCropCreatePayload) =>
+        apiClient.post<ManagedCrop>('/crops/managed', payload).then(response => response.data),
+
+    updateManagedCrop: (id: number, payload: ManagedCropUpdatePayload) =>
+        apiClient.put<ManagedCrop>(`/crops/managed/${id}`, payload).then(response => response.data)
 };
 
 // Weather API
 export const weatherApi = {
-    getCurrentWeather: (params?: { lat?: number; lon?: number; location?: string }) => 
+    getCurrentWeather: (params?: { lat?: number; lon?: number; location?: string }) =>
         apiClient.get<WeatherCurrentResponse>('/weather/current', { params })
             .then(response => response.data)
             .catch((error: AxiosError<ApiError>) => {
                 console.error('Error fetching weather:', error.response?.data?.detail);
                 throw error;
             }),
-    
-    getWeatherForecast: (params?: { lat?: number; lon?: number; location?: string; days?: number }) => 
-        apiClient.get<WeatherForecastResponse>('/weather/forecast', { 
+
+    getWeatherForecast: (params?: { lat?: number; lon?: number; location?: string; days?: number }) =>
+        apiClient.get<WeatherForecastResponse>('/weather/forecast', {
             params
         })
             .then(response => response.data)
@@ -199,22 +218,22 @@ export const weatherApi = {
 
     getWeatherHistory: (location?: string, days: number = 7) =>
         apiClient.get<WeatherForecastResponse>('/weather/forecast', { params: { location, days } }).then(response => response.data),
-    
+
     getWeatherIcon: (iconCode: string) =>
         `https://openweathermap.org/img/wn/${iconCode}@2x.png`
 };
 
 // Market API
 export const marketApi = {
-    getCurrentPrices: (params?: { state?: string, market?: string, commodity?: string, crop_id?: number }) => 
+    getCurrentPrices: (params?: { state?: string, market?: string, commodity?: string, crop_id?: number }) =>
         apiClient.get<MarketPrice[]>('/market/prices/current', { params })
             .then(response => response.data)
             .catch((error: AxiosError<ApiError>) => {
                 console.error('Error fetching current prices:', error.response?.data?.detail);
                 throw error;
             }),
-    
-    getPriceHistory: (cropId: number, days: number = 30) => 
+
+    getPriceHistory: (cropId: number, days: number = 30) =>
         apiClient.get<MarketPrice[]>(`/market/prices/history/${cropId}`, {
             params: { days }
         })
@@ -223,16 +242,16 @@ export const marketApi = {
                 console.error('Error fetching price history:', error.response?.data?.detail);
                 throw error;
             }),
-    
-    getMarkets: () => 
+
+    getMarkets: () =>
         apiClient.get<string[]>('/market/markets')
             .then(response => response.data)
             .catch((error: AxiosError<ApiError>) => {
                 console.error('Error fetching markets:', error.response?.data?.detail);
                 throw error;
             }),
-    
-    getMarketTrends: (cropId: number) => 
+
+    getMarketTrends: (cropId: number) =>
         apiClient.get<{
             trend: string;
             current_price: number;
@@ -244,7 +263,16 @@ export const marketApi = {
             .catch((error: AxiosError<ApiError>) => {
                 console.error('Error fetching market trends:', error.response?.data?.detail);
                 throw error;
-            })
+            }),
+
+    createAlert: (alertData: { commodity: string, target_price: number, condition: string }) =>
+        apiClient.post('/market/alerts', alertData).then(response => response.data),
+
+    getAlerts: () =>
+        apiClient.get('/market/alerts').then(response => response.data),
+
+    deleteAlert: (alertId: number) =>
+        apiClient.delete(`/market/alerts/${alertId}`).then(response => response.data)
 };
 
 export const dashboardApi = {
@@ -278,6 +306,25 @@ export const inventoryApi = {
         apiClient.delete(`/inventory/${id}`).then(r => r.data),
 };
 
+import { Notification, NotificationUpdate } from '../types/notification';
+
+export const notificationApi = {
+    getNotifications: () =>
+        apiClient.get<Notification[]>('/notifications').then(response => response.data),
+
+    markAsRead: (id: number, data: NotificationUpdate) =>
+        apiClient.patch<Notification>(`/notifications/${id}/read`, data).then(response => response.data),
+
+    deleteNotification: (id: number) =>
+        apiClient.delete(`/notifications/${id}`).then(response => response.data),
+};
+
+export const askSathiApi = {
+    ask: (query: string, history: { role: string; content: string }[] = []) =>
+        apiClient.post<{ type: string; response: string; language: string }>('/ask-sathi/ask-sathi', { query, history })
+            .then(response => response.data),
+};
+
 export default {
     auth: authApi,
     farms: farmApi,
@@ -288,4 +335,6 @@ export default {
     market: marketApi,
     dashboard: dashboardApi,
     inventory: inventoryApi,
+    notifications: notificationApi,
+    askSathi: askSathiApi,
 };
