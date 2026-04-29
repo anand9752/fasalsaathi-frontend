@@ -13,8 +13,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { farmApi, soilTestApi } from "../services/api";
-import { Farm, FarmCropCycle, SoilTest, SoilTestCreatePayload } from "../types/api";
+import { cropApi, farmApi, soilTestApi } from "../services/api";
+import { Farm, FarmCropCycle, ManagedCrop, SoilTest, SoilTestCreatePayload } from "../types/api";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -33,6 +33,7 @@ const emptySoilForm = {
 export function MyFarmPage() {
   const [farm, setFarm] = useState<Farm | null>(null);
   const [latestSoilTest, setLatestSoilTest] = useState<SoilTest | null>(null);
+  const [managedCrops, setManagedCrops] = useState<ManagedCrop[]>([]);
   const [soilForm, setSoilForm] = useState(emptySoilForm);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -45,7 +46,14 @@ export function MyFarmPage() {
         setFarm(primaryFarm);
         if (!primaryFarm) {
           setLatestSoilTest(null);
+          setManagedCrops([]);
           return;
+        }
+        try {
+          const crops = await cropApi.getManagedCrops(primaryFarm.id);
+          setManagedCrops(crops);
+        } catch {
+          setManagedCrops([]);
         }
         try {
           const soilTest = await soilTestApi.getLatestByFarm(primaryFarm.id);
@@ -75,19 +83,28 @@ export function MyFarmPage() {
       } catch {
         setFarm(null);
         setLatestSoilTest(null);
+        setManagedCrops([]);
       }
     };
 
     void loadFarm();
   }, []);
 
-  const activeCrop = useMemo(
+  const legacyActiveCrop = useMemo(
     () => farm?.crop_cycles?.find((cycle) => cycle.status === "active") || null,
     [farm],
   );
-  const cropHistory = useMemo(
+  const legacyCropHistory = useMemo(
     () => (farm?.crop_cycles || []).filter((cycle) => cycle.status === "completed"),
     [farm],
+  );
+  const activeManagedCrop = useMemo(
+    () => managedCrops.find((crop) => crop.status === "active") || null,
+    [managedCrops],
+  );
+  const managedCropHistory = useMemo(
+    () => managedCrops.filter((crop) => crop.status === "completed"),
+    [managedCrops],
   );
 
   if (!farm) {
@@ -102,14 +119,27 @@ export function MyFarmPage() {
     );
   }
 
-  const totalProfit = cropHistory.reduce((sum, cycle) => sum + (cycle.profit_loss || 0), 0);
-  const progressValue = activeCrop?.sowing_date && activeCrop.expected_harvest_date
+  const usingManagedCrops = managedCrops.length > 0;
+  const totalProfit = usingManagedCrops
+    ? managedCropHistory.reduce((sum, crop) => sum + (crop.estimated_profit || 0), 0)
+    : legacyCropHistory.reduce((sum, cycle) => sum + (cycle.profit_loss || 0), 0);
+  const progressValue = activeManagedCrop?.sowing_date && activeManagedCrop.expected_harvest_date
     ? Math.min(
         100,
         Math.max(
           0,
-          ((Date.now() - new Date(activeCrop.sowing_date).getTime()) /
-            (new Date(activeCrop.expected_harvest_date).getTime() - new Date(activeCrop.sowing_date).getTime())) *
+          ((Date.now() - new Date(activeManagedCrop.sowing_date).getTime()) /
+            (new Date(activeManagedCrop.expected_harvest_date).getTime() - new Date(activeManagedCrop.sowing_date).getTime())) *
+            100,
+        ),
+      )
+    : legacyActiveCrop?.sowing_date && legacyActiveCrop.expected_harvest_date
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          ((Date.now() - new Date(legacyActiveCrop.sowing_date).getTime()) /
+            (new Date(legacyActiveCrop.expected_harvest_date).getTime() - new Date(legacyActiveCrop.sowing_date).getTime())) *
             100,
         ),
       )
@@ -271,19 +301,43 @@ export function MyFarmPage() {
                     <Leaf className="w-6 h-6 mr-3 text-primary" />
                     Active Crop
                   </div>
-                  <Badge className="bg-green-100 text-green-800">{activeCrop ? activeCrop.status : "none"}</Badge>
+                  <Badge className="bg-green-100 text-green-800">{activeManagedCrop?.status || legacyActiveCrop?.status || "none"}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {activeCrop ? (
+                {activeManagedCrop ? (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-2xl font-bold">{activeCrop.crop_name_hindi} ({activeCrop.crop_name})</h3>
+                      <h3 className="text-2xl font-bold">{activeManagedCrop.name_hindi} ({activeManagedCrop.name})</h3>
                       <div className="grid grid-cols-2 gap-4 mt-4">
-                        <InfoRow icon={<Calendar className="w-4 h-4 mr-2 text-gray-500" />} label="Sowing date" value={activeCrop.sowing_date?.slice(0, 10) || "-"} />
-                        <InfoRow icon={<Calendar className="w-4 h-4 mr-2 text-gray-500" />} label="Expected harvest" value={activeCrop.expected_harvest_date?.slice(0, 10) || "-"} />
-                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Season" value={`${activeCrop.season} ${activeCrop.year}`} />
-                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Area under crop" value={`${activeCrop.area} acre`} />
+                        <InfoRow icon={<Calendar className="w-4 h-4 mr-2 text-gray-500" />} label="Sowing date" value={activeManagedCrop.sowing_date?.slice(0, 10) || "-"} />
+                        <InfoRow icon={<Calendar className="w-4 h-4 mr-2 text-gray-500" />} label="Expected harvest" value={activeManagedCrop.expected_harvest_date?.slice(0, 10) || "-"} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Season" value={activeManagedCrop.season || "-"} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Area under crop" value={`${activeManagedCrop.area} acre`} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Crop type" value={activeManagedCrop.crop_type} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Risk level" value={activeManagedCrop.risk_level} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Estimated cost" value={`Rs. ${activeManagedCrop.estimated_cost.toLocaleString()}`} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Estimated profit" value={`Rs. ${activeManagedCrop.estimated_profit.toLocaleString()}`} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">Crop progress</span>
+                        <span className="text-sm text-gray-600">{Math.round(progressValue)}%</span>
+                      </div>
+                      <Progress value={progressValue} className="h-3" />
+                    </div>
+                  </div>
+                ) : legacyActiveCrop ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-2xl font-bold">{legacyActiveCrop.crop_name_hindi} ({legacyActiveCrop.crop_name})</h3>
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <InfoRow icon={<Calendar className="w-4 h-4 mr-2 text-gray-500" />} label="Sowing date" value={legacyActiveCrop.sowing_date?.slice(0, 10) || "-"} />
+                        <InfoRow icon={<Calendar className="w-4 h-4 mr-2 text-gray-500" />} label="Expected harvest" value={legacyActiveCrop.expected_harvest_date?.slice(0, 10) || "-"} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Season" value={`${legacyActiveCrop.season} ${legacyActiveCrop.year}`} />
+                        <InfoRow icon={<Target className="w-4 h-4 mr-2 text-gray-500" />} label="Area under crop" value={`${legacyActiveCrop.area} acre`} />
                       </div>
                     </div>
 
@@ -311,13 +365,17 @@ export function MyFarmPage() {
                   <History className="w-5 h-5 mr-2 text-primary" />
                   Crop History
                 </div>
-                <Badge variant="outline">{cropHistory.length} seasons</Badge>
+                <Badge variant="outline">{usingManagedCrops ? managedCropHistory.length : legacyCropHistory.length} seasons</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {cropHistory.length ? (
-                  cropHistory.map((cycle) => (
+                {usingManagedCrops && managedCropHistory.length ? (
+                  managedCropHistory.map((crop) => (
+                    <ManagedCropHistoryItem key={crop.id} crop={crop} />
+                  ))
+                ) : legacyCropHistory.length ? (
+                  legacyCropHistory.map((cycle) => (
                     <HistoryItem key={cycle.id} cycle={cycle} />
                   ))
                 ) : (
@@ -326,7 +384,7 @@ export function MyFarmPage() {
               </div>
 
               <div className="mt-6 pt-4 border-t text-center">
-                <p className="text-sm text-gray-600 mb-2">Total profit / loss</p>
+                <p className="text-sm text-gray-600 mb-2">{usingManagedCrops ? "Total estimated profit" : "Total profit / loss"}</p>
                 <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
                   Rs. {Math.abs(totalProfit).toLocaleString()}
                 </p>
@@ -383,6 +441,33 @@ function HistoryItem({ cycle }: { cycle: FarmCropCycle }) {
           <p className={`font-medium flex items-center ${positive ? "text-green-600" : "text-red-600"}`}>
             {positive ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
             Rs. {Math.abs(cycle.profit_loss || 0).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManagedCropHistoryItem({ crop }: { crop: ManagedCrop }) {
+  return (
+    <div className="border rounded-lg p-4">
+      <div className="flex items-center justify-between mb-1">
+        <h4 className="font-semibold text-sm">{crop.name_hindi}</h4>
+        <Badge className="bg-green-100 text-green-800">
+          {crop.risk_level}
+        </Badge>
+      </div>
+      <p className="text-xs text-gray-600 mb-2">{crop.season || "Season not set"}</p>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <span className="text-gray-500">Area:</span>
+          <p className="font-medium">{crop.area} acre</p>
+        </div>
+        <div>
+          <span className="text-gray-500">Est. profit:</span>
+          <p className="font-medium flex items-center text-green-600">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            Rs. {Math.abs(crop.estimated_profit || 0).toLocaleString()}
           </p>
         </div>
       </div>

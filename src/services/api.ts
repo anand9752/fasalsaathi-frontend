@@ -5,7 +5,7 @@ import axios, {
     InternalAxiosRequestConfig,
     AxiosRequestConfig
 } from 'axios';
-import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
+import { Crop, CropDetailResponse, CropRecommendation, CropRecommendationRequest, DashboardOverview, Disease, Farm, FarmCalendarResponse, InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryStats, ManagedCrop, ManagedCropCreatePayload, ManagedCropUpdatePayload, MarketPrice, RegisterPayload, SoilTest, SoilTestCreatePayload, User, WeatherCurrentResponse, WeatherForecastResponse } from '../types/api';
 
 // Error interface for backend responses
 interface ApiError {
@@ -168,7 +168,16 @@ export const cropApi = {
     }) => apiClient.post('/crops/yield-prediction', params).then(response => response.data),
 
     getAllCrops: () =>
-        apiClient.get<Crop[]>('/crops').then(response => response.data)
+        apiClient.get<Crop[]>('/crops').then(response => response.data),
+
+    getManagedCrops: (farmId?: number) =>
+        apiClient.get<ManagedCrop[]>('/crops/managed', { params: farmId ? { farm_id: farmId } : undefined }).then(response => response.data),
+
+    createManagedCrop: (payload: ManagedCropCreatePayload) =>
+        apiClient.post<ManagedCrop>('/crops/managed', payload).then(response => response.data),
+
+    updateManagedCrop: (id: number, payload: ManagedCropUpdatePayload) =>
+        apiClient.put<ManagedCrop>(`/crops/managed/${id}`, payload).then(response => response.data)
 };
 
 // Weather API

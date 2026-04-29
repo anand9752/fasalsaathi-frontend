@@ -63,6 +63,7 @@ export const useDeleteFarm = () => {
         mutationFn: farmApi.deleteFarm,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['farms'] });
+            queryClient.invalidateQueries({ queryKey: ['managed-crops'] });
         }
     });
 };
@@ -111,6 +112,37 @@ export const useCropRecommendations = () => {
 export const useYieldPrediction = () => {
     return useMutation({
         mutationFn: cropApi.predictYield
+    });
+};
+
+export const useManagedCrops = (farmId?: number) => {
+    return useQuery({
+        queryKey: ['managed-crops', farmId ?? 'all'],
+        queryFn: () => cropApi.getManagedCrops(farmId),
+    });
+};
+
+export const useCreateManagedCrop = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: cropApi.createManagedCrop,
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['managed-crops'] });
+            queryClient.invalidateQueries({ queryKey: ['managed-crops', variables.farm_id] });
+            queryClient.invalidateQueries({ queryKey: ['farms'] });
+        }
+    });
+};
+
+export const useUpdateManagedCrop = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: number; data: any }) => cropApi.updateManagedCrop(id, data),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['managed-crops'] });
+            queryClient.invalidateQueries({ queryKey: ['managed-crops', data.farm_id] });
+            queryClient.invalidateQueries({ queryKey: ['farms'] });
+        }
     });
 };
 

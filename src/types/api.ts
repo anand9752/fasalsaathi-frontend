@@ -46,6 +46,58 @@ export interface Crop {
     diseases?: Disease[];
 }
 
+export interface ManagedCrop {
+    id: number;
+    farm_id: number;
+    farm_name: string;
+    name: string;
+    name_hindi: string;
+    crop_type: string;
+    season: string;
+    duration: number;
+    area: number;
+    estimated_cost: number;
+    estimated_profit: number;
+    expected_yield?: number | null;
+    risk_level: string;
+    status: string;
+    sowing_date?: string | null;
+    expected_harvest_date?: string | null;
+    actual_harvest_date?: string | null;
+    variety?: string | null;
+    water_requirement: string;
+    soil_preference: string;
+    description: string;
+    notes: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ManagedCropCreatePayload {
+    farm_id: number;
+    name: string;
+    name_hindi: string;
+    crop_type: string;
+    season?: string;
+    duration: number;
+    area: number;
+    estimated_cost: number;
+    estimated_profit: number;
+    expected_yield?: number | null;
+    risk_level: string;
+    status?: string;
+    sowing_date?: string | null;
+    expected_harvest_date?: string | null;
+    actual_harvest_date?: string | null;
+    variety?: string | null;
+    water_requirement?: string;
+    soil_preference?: string;
+    description?: string;
+    notes?: string;
+}
+
+export interface ManagedCropUpdatePayload extends Partial<ManagedCropCreatePayload> {}
+
 export interface FarmCropCycle {
     id: number;
     crop_id: number;

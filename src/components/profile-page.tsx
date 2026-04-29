@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom"; // Added for routing to Contact 
 
 // Import hooks and API services
 import { useLanguage, Language } from "../hooks/useLanguage";
-import { useCurrentUser, useFarms, useCreateFarm, useDeleteFarm, useDashboardOverview } from "../services/hooks";
+import { useCurrentUser, useFarms, useCreateFarm, useDeleteFarm, useDashboardOverview, useManagedCrops, useCreateManagedCrop, useUpdateManagedCrop } from "../services/hooks";
 import { authApi, farmApi } from "../services/api";
 
 type Tab = "details" | "farms" | "subscription" | "preferences";
@@ -469,8 +469,11 @@ function UserDetailsTab({ txt }: { txt: any }) {
 function FarmManagementTab({ txt }: { txt: any }) {
   const queryClient = useQueryClient();
   const { data: farms, isLoading } = useFarms();
+  const { data: managedCrops, isLoading: isCropsLoading } = useManagedCrops();
   const createFarmMutation = useCreateFarm();
   const deleteFarmMutation = useDeleteFarm();
+  const createManagedCropMutation = useCreateManagedCrop();
+  const updateManagedCropMutation = useUpdateManagedCrop();
   
   const updateFarmMutation = useMutation({
     mutationFn: (params: { id: number, data: any }) => farmApi.updateFarm(params.id, params.data),
@@ -482,11 +485,67 @@ function FarmManagementTab({ txt }: { txt: any }) {
   
   const defaultFarm = { name: "", location: "", area: 0, soil_type: "Loamy", irrigation_type: "Drip" };
   const [farmForm, setFarmForm] = useState(defaultFarm);
+  const buildDefaultCrop = (farmId: number) => ({
+    farm_id: farmId,
+    name: "",
+    name_hindi: "",
+    crop_type: "field",
+    season: "Kharif",
+    duration: 120,
+    area: 0,
+    estimated_cost: 0,
+    estimated_profit: 0,
+    expected_yield: 0,
+    risk_level: "medium",
+    status: "planned",
+    sowing_date: "",
+    expected_harvest_date: "",
+    variety: "",
+    water_requirement: "",
+    soil_preference: "",
+    description: "",
+    notes: "",
+  });
+  const [cropMode, setCropMode] = useState<'list' | 'add' | 'edit'>('list');
+  const [editingCropId, setEditingCropId] = useState<number | null>(null);
+  const [cropForm, setCropForm] = useState(buildDefaultCrop(0));
+
+  useEffect(() => {
+    if (farms?.length && !cropForm.farm_id) {
+      setCropForm((current) => ({ ...current, farm_id: farms[0].id }));
+    }
+  }, [cropForm.farm_id, farms]);
 
   const handleEditClick = (farm: any) => {
     setFarmForm({ name: farm.name, location: farm.location, area: farm.area, soil_type: farm.soil_type, irrigation_type: farm.irrigation_type });
     setEditingId(farm.id);
     setMode('edit');
+  };
+
+  const handleEditCropClick = (crop: any) => {
+    setCropForm({
+      farm_id: crop.farm_id,
+      name: crop.name,
+      name_hindi: crop.name_hindi,
+      crop_type: crop.crop_type,
+      season: crop.season || "",
+      duration: crop.duration,
+      area: crop.area,
+      estimated_cost: crop.estimated_cost,
+      estimated_profit: crop.estimated_profit,
+      expected_yield: crop.expected_yield || 0,
+      risk_level: crop.risk_level,
+      status: crop.status,
+      sowing_date: crop.sowing_date || "",
+      expected_harvest_date: crop.expected_harvest_date || "",
+      variety: crop.variety || "",
+      water_requirement: crop.water_requirement || "",
+      soil_preference: crop.soil_preference || "",
+      description: crop.description || "",
+      notes: crop.notes || "",
+    });
+    setEditingCropId(crop.id);
+    setCropMode('edit');
   };
 
   const handleDeleteClick = async (id: number) => {
@@ -508,6 +567,30 @@ function FarmManagementTab({ txt }: { txt: any }) {
   };
 
   const isMutating = createFarmMutation.isPending || updateFarmMutation.isPending;
+  const isCropMutating = createManagedCropMutation.isPending || updateManagedCropMutation.isPending;
+
+  const handleCropSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...cropForm,
+        sowing_date: cropForm.sowing_date || null,
+        expected_harvest_date: cropForm.expected_harvest_date || null,
+        variety: cropForm.variety || null,
+        expected_yield: cropForm.expected_yield || null,
+      };
+      if (cropMode === 'add') {
+        await createManagedCropMutation.mutateAsync(payload);
+      } else if (cropMode === 'edit' && editingCropId !== null) {
+        await updateManagedCropMutation.mutateAsync({ id: editingCropId, data: payload });
+      }
+      setCropMode('list');
+      setEditingCropId(null);
+      setCropForm(buildDefaultCrop(farms?.[0]?.id || 0));
+    } catch (err) {
+      alert("Error saving crop.");
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -665,6 +748,235 @@ function FarmManagementTab({ txt }: { txt: any }) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <div className="mt-10 pt-8 border-t" style={{ borderColor: 'var(--prof-border)' }}>
+          <div className="fs-prof-card-header px-0 pt-0">
+            <div>
+              <h2 className="fs-prof-card-title">Crop Management</h2>
+              <p className="fs-prof-card-desc">
+                Add, edit, and track farm-specific crops with cost, profit, risk, and schedule details.
+              </p>
+            </div>
+            {cropMode === 'list' && !!farms?.length && (
+              <button
+                onClick={() => { setCropForm(buildDefaultCrop(farms?.[0]?.id || 0)); setCropMode('add'); }}
+                className="fs-prof-btn mx-auto sm:w-auto sm:ml-auto inline-flex"
+              >
+                <Plus size={16} /> Add New Crop
+              </button>
+            )}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {cropMode !== 'list' && (
+              <motion.form
+                key="crop-form"
+                initial={{ opacity: 0, y: -20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="mb-8"
+                onSubmit={handleCropSubmit}
+                style={{ background: 'var(--prof-card-bg)', padding: '2rem', borderRadius: '1.25rem', border: '1px solid var(--prof-border)', boxShadow: '0 25px 50px -12px var(--prof-shadow)' }}
+              >
+                <div className="flex justify-between items-center mb-8 border-b pb-4" style={{ borderColor: 'var(--prof-border)' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      <Wheat size={20} />
+                    </div>
+                    <h3 className="text-xl font-bold" style={{ color: 'var(--prof-text-main)' }}>
+                      {cropMode === 'add' ? 'Register New Crop' : 'Modify Crop Details'}
+                    </h3>
+                  </div>
+                  <button type="button" onClick={() => setCropMode('list')} className="fs-prof-icon-btn"><X size={20}/></button>
+                </div>
+
+                <div className="fs-prof-form-grid mb-8">
+                  <div>
+                    <label className="fs-prof-label">Farm</label>
+                    <select className="fs-prof-input" required value={cropForm.farm_id} onChange={e => setCropForm({ ...cropForm, farm_id: Number(e.target.value) })}>
+                      <option value={0}>Select farm</option>
+                      {(farms || []).map((farm: any) => (
+                        <option key={farm.id} value={farm.id}>{farm.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Crop Name (English)</label>
+                    <input className="fs-prof-input" required value={cropForm.name} onChange={e => setCropForm({ ...cropForm, name: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Crop Name (Hindi)</label>
+                    <input className="fs-prof-input" required value={cropForm.name_hindi} onChange={e => setCropForm({ ...cropForm, name_hindi: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Crop Type</label>
+                    <input className="fs-prof-input" value={cropForm.crop_type} onChange={e => setCropForm({ ...cropForm, crop_type: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Season</label>
+                    <input className="fs-prof-input" value={cropForm.season} onChange={e => setCropForm({ ...cropForm, season: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Duration (days)</label>
+                    <input className="fs-prof-input" type="number" min="1" value={cropForm.duration} onChange={e => setCropForm({ ...cropForm, duration: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Area (Acres)</label>
+                    <input className="fs-prof-input" type="number" step="0.1" value={cropForm.area} onChange={e => setCropForm({ ...cropForm, area: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Estimated Cost</label>
+                    <input className="fs-prof-input" type="number" step="0.01" value={cropForm.estimated_cost} onChange={e => setCropForm({ ...cropForm, estimated_cost: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Estimated Profit</label>
+                    <input className="fs-prof-input" type="number" step="0.01" value={cropForm.estimated_profit} onChange={e => setCropForm({ ...cropForm, estimated_profit: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Expected Yield</label>
+                    <input className="fs-prof-input" type="number" step="0.01" value={cropForm.expected_yield} onChange={e => setCropForm({ ...cropForm, expected_yield: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Risk Level</label>
+                    <select className="fs-prof-input" value={cropForm.risk_level} onChange={e => setCropForm({ ...cropForm, risk_level: e.target.value })}>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Status</label>
+                    <select className="fs-prof-input" value={cropForm.status} onChange={e => setCropForm({ ...cropForm, status: e.target.value })}>
+                      <option value="planned">Planned</option>
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Sowing Date</label>
+                    <input className="fs-prof-input" type="date" value={cropForm.sowing_date} onChange={e => setCropForm({ ...cropForm, sowing_date: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Expected Harvest Date</label>
+                    <input className="fs-prof-input" type="date" value={cropForm.expected_harvest_date} onChange={e => setCropForm({ ...cropForm, expected_harvest_date: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Variety</label>
+                    <input className="fs-prof-input" value={cropForm.variety} onChange={e => setCropForm({ ...cropForm, variety: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="fs-prof-label">Water Requirement</label>
+                    <input className="fs-prof-input" value={cropForm.water_requirement} onChange={e => setCropForm({ ...cropForm, water_requirement: e.target.value })} />
+                  </div>
+                  <div className="fs-prof-full-width">
+                    <label className="fs-prof-label">Soil Preference</label>
+                    <input className="fs-prof-input" value={cropForm.soil_preference} onChange={e => setCropForm({ ...cropForm, soil_preference: e.target.value })} />
+                  </div>
+                  <div className="fs-prof-full-width">
+                    <label className="fs-prof-label">Description</label>
+                    <textarea className="fs-prof-input min-h-[100px]" value={cropForm.description} onChange={e => setCropForm({ ...cropForm, description: e.target.value })} />
+                  </div>
+                  <div className="fs-prof-full-width">
+                    <label className="fs-prof-label">Notes</label>
+                    <textarea className="fs-prof-input min-h-[90px]" value={cropForm.notes} onChange={e => setCropForm({ ...cropForm, notes: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button type="submit" disabled={isCropMutating} className="fs-prof-btn w-full sm:w-auto">
+                    {isCropMutating ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+                    {cropMode === 'add' ? 'Save New Crop' : 'Update Crop'}
+                  </button>
+                  <button type="button" onClick={() => setCropMode('list')} className="fs-prof-btn outline w-full sm:w-auto">Cancel</button>
+                </div>
+              </motion.form>
+            )}
+
+            {!farms?.length && cropMode === 'list' && (
+              <motion.div key="crop-no-farm" initial={{opacity:0}} animate={{opacity:1}} className="rounded-2xl border px-6 py-10 text-center" style={{ borderColor: 'var(--prof-border)', color: 'var(--prof-text-muted)' }}>
+                Add a farm first to start managing crops.
+              </motion.div>
+            )}
+
+            {isCropsLoading && cropMode === 'list' && !!farms?.length && (
+              <LoadingSpinner key="crop-spinner" txt={{ loading: "Fetching crops..." }} />
+            )}
+
+            {!isCropsLoading && cropMode === 'list' && !!farms?.length && (!managedCrops || managedCrops.length === 0) && (
+              <motion.div key="crop-empty" initial={{opacity:0}} animate={{opacity:1}} className="flex flex-col items-center justify-center py-16 text-center" style={{ color: 'var(--prof-text-muted)' }}>
+                <div className="w-24 h-24 bg-emerald-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
+                  <Wheat size={40} className="text-emerald-300 dark:text-emerald-700" />
+                </div>
+                <p className="text-xl font-bold mb-2" style={{ color: 'var(--prof-text-main)' }}>No crops managed yet.</p>
+                <p className="text-sm max-w-sm mb-8">Create your first crop entry to track current crops, history, and farm-wise profitability.</p>
+                <button onClick={() => { setCropForm(buildDefaultCrop(farms?.[0]?.id || 0)); setCropMode('add'); }} className="fs-prof-btn">
+                  <Plus size={18} /> Add New Crop
+                </button>
+              </motion.div>
+            )}
+
+            {!isCropsLoading && cropMode === 'list' && managedCrops && managedCrops.length > 0 && (
+              <motion.div layout key="crop-grid" className="fs-prof-farm-grid">
+                <AnimatePresence>
+                  {managedCrops.map((crop: any) => (
+                    <motion.div
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      key={crop.id}
+                      className="fs-prof-farm-item"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3 min-w-0 pr-4">
+                          <div className="p-3 rounded-xl shrink-0" style={{ background: 'var(--prof-primary-light)', color: 'var(--prof-primary-dark)' }}>
+                            <Wheat size={24} />
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-lg font-bold truncate" style={{ color: 'var(--prof-text-main)' }}>{crop.name_hindi}</h3>
+                            <p className="text-sm truncate" style={{ color: 'var(--prof-text-muted)' }}>{crop.name} • {crop.farm_name}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button onClick={() => handleEditCropClick(crop)} className="fs-prof-icon-btn edit"><Pencil size={16}/></button>
+                        </div>
+                      </div>
+
+                      <div className="w-full">
+                        <div className="space-y-3 pt-4 border-t pl-2" style={{ borderColor: 'var(--prof-border)' }}>
+                          <div className="flex items-center text-sm" style={{ color: 'var(--prof-text-muted)' }}>
+                            <Sprout size={18} className="text-emerald-500 mr-3 shrink-0"/>
+                            <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{crop.area}</span> acre
+                          </div>
+                          <div className="flex items-center text-sm pt-2" style={{ color: 'var(--prof-text-muted)' }}>
+                            <Droplets size={18} className="text-blue-500 mr-3 shrink-0"/>
+                            <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{crop.crop_type}</span> type
+                          </div>
+                          <div className="flex items-center text-sm pt-2" style={{ color: 'var(--prof-text-muted)' }}>
+                            <CloudRain size={18} className="text-amber-500 mr-3 shrink-0"/>
+                            <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{crop.risk_level}</span> risk
+                          </div>
+                          <div className="flex items-center text-sm pt-2 pb-4" style={{ color: 'var(--prof-text-muted)' }}>
+                            <CalendarDays size={18} className="text-violet-500 mr-3 shrink-0"/>
+                            <span className="font-medium mr-1 truncate" style={{color:'var(--prof-text-main)'}}>{crop.duration}</span> days
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-5 pt-4 border-t text-xs font-semibold uppercase tracking-wider" style={{ borderColor: 'var(--prof-border)', color: 'var(--prof-text-muted)'}}>
+                          <span>Cost: ₹{Number(crop.estimated_cost || 0).toLocaleString()}</span>
+                          <span>Profit: ₹{Number(crop.estimated_profit || 0).toLocaleString()}</span>
+                          <span className={`px-2 py-1 rounded-full ${crop.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>{crop.status}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
